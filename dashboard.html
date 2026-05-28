@@ -792,7 +792,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
    定数・状態管理
 ═════════════════════════════════════════════════════════ */
 const TGT    = 10000000;
-const LS_KEY = 'fn_dashboard_v20'; // v20: burnDataをgetCash()ベースに修正・実績シート更新対応
+const LS_KEY = 'fn_dashboard_v21'; // v21: parseBS isNewFormat検出をSBI行列数ベースに強化
 const F      = v => '¥' + Math.abs(Math.round(v)).toLocaleString('ja-JP');
 const Pct    = (v,t) => Math.min(100, Math.max(0, v / t * 100));
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
@@ -1854,20 +1854,23 @@ function parseBS(sheet) {
   if (!sheet) return null;
   const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:true, defval:null});
   const num = v => (typeof v==='number' ? v : 0);
-  let isNewFormat = false;
-  for (const row of rows) {
-    if (!row) continue;
-    const hasActual=row.some(v=>v==='actual'), hasForecast=row.some(v=>v==='Forecast');
-    if (hasActual&&hasForecast) { isNewFormat=true; break; }
-    if (row[0]&&typeof row[0]==='string'&&row[0].includes('ＳＢＩ')) break;
-  }
+  /* ★ FIX: isNewFormat検出を強化
+     旧方法: ヘッダー行の'actual'/'Forecast'文字列探索 → XLSX.js環境で失敗する場合あり
+     新方法: SBI行の数値列数で直接判定（24列=新形式, ≤12列=旧形式）← 確実 */
   const cashAct=Array(12).fill(0), cashFC=Array(12).fill(0);
   rows.forEach(row=>{
     if (!row||row[0]==null) return;
     const lbl=row[0].toString().trim();
     if (lbl.includes('ＳＢＩ')||lbl==='現金及び預金'||lbl.includes('現金')) {
-      if (isNewFormat) { for(let m=0;m<12;m++){ cashAct[m]=num(row[2+m*2]); cashFC[m]=num(row[3+m*2]); } }
+      /* SBI行自体の数値列数でフォーマットを判定
+         新形式(actual/FC交互): 期首1 + 月12×2 = 最大25数値 → numericCount > 12
+         旧形式(月のみ): 期首1 + 月12 = 最大13数値 → numericCount <= 12 */
+      const numericCount = row.slice(1).filter(v => typeof v === 'number').length;
+      const isNewFmt = numericCount > 12;
+      console.log('[parseBS] SBI行 数値列数:', numericCount, '→ isNewFmt:', isNewFmt);
+      if (isNewFmt) { for(let m=0;m<12;m++){ cashAct[m]=num(row[2+m*2]); cashFC[m]=num(row[3+m*2]); } }
       else { for(let m=0;m<12;m++){ cashAct[m]=num(row[2+m]); cashFC[m]=num(row[2+m]); } }
+      console.log('[parseBS] cashAct:', cashAct, 'cashFC:', cashFC);
     }
   });
   return { cash:cashAct, cashFC, isNewFormat };
