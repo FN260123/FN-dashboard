@@ -792,7 +792,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
    定数・状態管理
 ═════════════════════════════════════════════════════════ */
 const TGT    = 10000000;
-const LS_KEY = 'fn_dashboard_v19'; // v19: isMonthClosed修正・最終締め月UI追加
+const LS_KEY = 'fn_dashboard_v20'; // v20: burnDataをgetCash()ベースに修正・実績シート更新対応
 const F      = v => '¥' + Math.abs(Math.round(v)).toLocaleString('ja-JP');
 const Pct    = (v,t) => Math.min(100, Math.max(0, v / t * 100));
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
@@ -1595,7 +1595,11 @@ function renderPL2() {
   if(charts.pl2){ charts.pl2.destroy(); charts.pl2=null; }
   const labels=MONTH_NAMES.slice(0,12);
   const cashData=getCash();
-  const burnData=bsData.cash.map((v,i)=>i===0?0:v-bsData.cash[i-1]);
+  /* ★ FIX: bsData.cash固定 → getCash() に変更
+     旧: actualのみ参照 → Forecast月(5月以降)の棒グラフがゼロになる
+     新: Actualモード=actual列, Forecastモード=cashFC列 を使い分け */
+  const cashForBar = getCash();
+  const burnData = cashForBar.map((v,i) => i===0 ? 0 : v - cashForBar[i-1]);
   charts.pl2=new Chart(document.getElementById('pl2-chart'),{
     data:{ labels, datasets:[
       {type:'bar',label:'月次キャッシュ増減',data:burnData,order:2,backgroundColor:burnData.map(v=>v>=0?'rgba(30,125,74,.6)':'rgba(192,57,43,.6)'),borderColor:burnData.map(v=>v>=0?'#1E7D4A':'#C0392B'),borderWidth:1},
