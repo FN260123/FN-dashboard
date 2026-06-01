@@ -262,10 +262,8 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
 .pl1-tbl td.num { text-align:right; font-variant-numeric:tabular-nums; }
 .pl1-tbl td.pos { color:var(--green); }
 .pl1-tbl td.neg { color:var(--red); }
-.pl1-tbl th:nth-child(4),.pl1-tbl th:nth-child(5) { background:#243580; border-left:2px solid rgba(255,255,255,.3); }
-.pl1-tbl th:nth-child(6),.pl1-tbl th:nth-child(7) { background:#2d4090; border-left:2px solid rgba(255,255,255,.3); }
-.pl1-tbl td:nth-child(4),.pl1-tbl td:nth-child(5) { border-left:2px solid var(--border); }
-.pl1-tbl td:nth-child(6),.pl1-tbl td:nth-child(7) { border-left:2px solid var(--border); }
+.pl1-tbl th:nth-child(2) { background:#243580; border-left:2px solid rgba(255,255,255,.3); }
+.pl1-tbl td:nth-child(2) { border-left:2px solid var(--border); background:#F0F4FF; }
 .pl1-drillbtn { cursor:pointer; font-size:9px; background:var(--navy-pale); border:none; border-radius:3px; padding:1px 5px; color:var(--navy); font-family:inherit; }
 .pl1-drillbtn:hover { background:var(--navy); color:#fff; }
 /* ③ monthly table */
@@ -634,22 +632,9 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   <div id="page-pl">
   <div class="wrap">
 
-    <!-- Actual/Forecast 切替 + ★FIX: 最終締め月セレクター -->
+    <!-- 最終締め月セレクター -->
     <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--navy-pale);border-radius:6px;border:1px solid var(--border);flex-wrap:wrap">
-      <span style="font-size:11px;font-weight:600;color:var(--navy)">表示モード：</span>
-      <button type="button" id="pl-mode-actual" onclick="setPLMode('actual')"
-        style="font-size:11px;padding:5px 16px;border-radius:4px;border:2px solid var(--navy);background:var(--navy);color:#fff;font-weight:700;cursor:pointer;font-family:inherit">
-        📊 Actual（実績）
-      </button>
-      <button type="button" id="pl-mode-forecast" onclick="setPLMode('forecast')"
-        style="font-size:11px;padding:5px 16px;border-radius:4px;border:2px solid var(--border);background:var(--white);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit">
-        🔮 Forecast（予測）
-      </button>
-      <span id="pl-mode-note" style="font-size:10px;color:var(--muted);margin-left:4px">
-        ④ドリルスルーは Actual モードのみ使用可
-      </span>
-      <!-- ★ FIX追加: 最終締め月 手動セレクター -->
-      <div class="closed-month-sel" title="実績（確定）とForecast（予測）の境界月を設定。デフォルトは自動判定（現在月の前月）">
+      <div class="closed-month-sel" title="実績確定月を設定。それ以降は実績シートの値→予算シートFCの順で自動選択">
         <label>📅 最終締め月：</label>
         <select id="pl-last-closed" onchange="setLastClosedMonth(this.value)">
           <option value="">自動判定</option>
@@ -667,6 +652,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
           <option value="12">12月</option>
         </select>
       </div>
+      <span style="font-size:10px;color:var(--muted)">締め月以前=実績、以降=実績シートのForecast→予算シートFC の順で自動選択</span>
     </div>
 
     <!-- KPI 6枚 -->
@@ -814,7 +800,6 @@ let S = {
   plActualOverrides:{}, plBudgetOverrides:{},
   plActualSheet:null, plBudgetSheet:null,
   yojitsu:null, bsData:null, glData:null, plSelMonth:null, plSelPeriod:null, pl3Expand:false,
-  plMode:'actual',
   /* ★ FIX: 最終締め月（null=自動判定、1-12=手動設定月） */
   lastClosedMonth: null,
   pipeData: {},
@@ -1345,6 +1330,8 @@ function setLastClosedMonth(val) {
   if (sel) sel.value = val;
 }
 
+
+
 /* ═════════════════════════════════════════════════════════
    ★ FIX: isMonthClosed — 修正版
    旧仕様: 販売管理費 計(計算行) が非ゼロかどうか → Excelキャッシュ不具合で常にfalse
@@ -1359,9 +1346,12 @@ function isMonthClosedGlobal(idx) {
     return idx < S.lastClosedMonth; // 例: lastClosedMonth=4 → idx<4 (Jan-Apr) = true
   }
 
-  /* ② 自動判定: 現在月（0-indexed）より前 かつ SGA個別行の合計が非ゼロ */
-  const nowMonthIdx = new Date().getMonth(); // 0-indexed（5月=4）
-  if (idx >= nowMonthIdx) return false;      // 今月・来月以降はForecast確定
+  /* ② 自動判定: 「前々月以前」かつSGA実績あり、を確定とみなす
+     nowMonthIdx-1 を閾値にすることで「先月」を自動的にForecastと見なす保守的な判定。
+     例) 6月1日: nowMonthIdx=5, 閾値=4 → 5月(idx=4)以降はForecast確定
+         7月1日: nowMonthIdx=6, 閾値=5 → 6月(idx=5)以降はForecast確定 */
+  const nowMonthIdx = new Date().getMonth(); // 0-indexed
+  if (idx >= nowMonthIdx - 1) return false;  // 前月・今月・来月以降はForecast確定
 
   /* ★ SGA合計は計算行(販売管理費 計)ではなく個別行から集計
      （理由: Excelの数式キャッシュ不具合で計算行がほぼゼロになるため） */
@@ -1375,29 +1365,25 @@ function isMonthClosedGlobal(idx) {
 /* ═════════════════════════════════════════════════════════
    Actual/Forecast 切替
 ═════════════════════════════════════════════════════════ */
-function setPLMode(mode) {
-  S.plMode = mode;
-  const btnA=document.getElementById('pl-mode-actual'), btnF=document.getElementById('pl-mode-forecast');
-  if (btnA&&btnF) {
-    if (mode==='actual') {
-      btnA.style.cssText+=';background:var(--navy);color:#fff;border-color:var(--navy)';
-      btnF.style.cssText+=';background:var(--white);color:var(--muted);border-color:var(--border)';
-    } else {
-      btnF.style.cssText+=';background:var(--orange);color:var(--navy);border-color:var(--orange)';
-      btnA.style.cssText+=';background:var(--white);color:var(--muted);border-color:var(--border)';
-    }
-  }
-  const drill=document.getElementById('pl4-card'); if(drill&&mode==='forecast') drill.style.display='none';
-  renderPLKPIBoxes(); renderPL1(); renderPL2(); renderPL2KPIs(); renderPL3();
-}
+
 
 /* ═════════════════════════════════════════════════════════
    データ取得ヘルパー
 ═════════════════════════════════════════════════════════ */
 function getActArr(key) { return S.yojitsu?.rawByKey?.[key] || Array(12).fill(0); }
 function getFCArr(key) { return S.yojitsu?.fcByKey?.[key] || S.yojitsu?.budByKey?.[key] || Array(12).fill(0); }
-function getPLArr(key) { return S.plMode==='forecast' ? getFCArr(key) : getActArr(key); }
-function getCash() { if (!S.bsData) return Array(12).fill(0); const fc=S.bsData.cashFC; return S.plMode==='forecast'&&Array.isArray(fc)&&fc.some(v=>v!==0)?fc:S.bsData.cash; }
+function getPLArr(key) {
+  /* 締め月以前=rawByKey(実績)、以降=fcByKey(予算シートFC) */
+  const raw = S.yojitsu?.rawByKey?.[key] || Array(12).fill(0);
+  const fc  = S.yojitsu?.fcByKey?.[key] || S.yojitsu?.budByKey?.[key] || Array(12).fill(0);
+  return raw.map((v, i) => isMonthClosedGlobal(i) ? (v || 0) : (fc[i] || 0));
+}
+function getCash() {
+  /* 締め月以前=actual、以降=cashFC(予算シートFC) */
+  if (!S.bsData) return Array(12).fill(0);
+  const act = S.bsData.cash, fc = S.bsData.cashFC || Array(12).fill(0);
+  return act.map((v, i) => isMonthClosedGlobal(i) ? (v || 0) : (fc[i] || 0));
+}
 
 const PERIOD_MONTHS = {
   '1Q':[0,1,2],'2Q':[3,4,5],'3Q':[6,7,8],'4Q':[9,10,11],
@@ -1415,17 +1401,30 @@ function selectPLPeriod(period) {
 function updatePLBadge() {
   const badge=document.getElementById('pl-selected-month-badge'); if(!badge) return;
   if (S.plSelPeriod) badge.textContent=`2026年 ${S.plSelPeriod}`;
-  else badge.textContent=`2026年${S.plSelMonth}月`;
+  else badge.textContent=`2026年 1〜${S.plSelMonth}月累計`;
 }
 
 function renderPLKPIBoxes() {
   const yd=S.yojitsu; if(!yd) return;
-  const idxList=S.plSelPeriod?PERIOD_MONTHS[S.plSelPeriod]:[(S.plSelMonth||1)-1];
+  /* 月選択時は常に1月〜選択月の累計 */
+  const idxList=S.plSelPeriod
+    ? PERIOD_MONTHS[S.plSelPeriod]
+    : Array.from({length:S.plSelMonth||1},(_,i)=>i);
   const closed=isMonthClosedGlobal(idxList[idxList.length-1]);
   const PIPE_FACTOR={'売上高':1,'売上高 計':1,'売上総損益金額':1,'外注費':0.5};
   const pipeArr=getPipeMonthlyTotal();
   const pipeAdd=(k)=>{ const f=(!closed&&PIPE_FACTOR[k]!==undefined)?PIPE_FACTOR[k]:0; return f!==0?sumAcross(pipeArr,idxList)*f:0; };
-  const act=k=>sumAcross(getPLArr(k),idxList)+pipeAdd(k);
+  /* 締め月以前=rawByKey(実績)、以降=fcByKey(予算FC)+パイプライン */
+  const pipeMonthlyKPI=getPipeMonthlyTotal();
+  const act=k=>{
+    const rawA=S.yojitsu?.rawByKey?.[k]||Array(12).fill(0);
+    const fcA=S.yojitsu?.fcByKey?.[k]||S.yojitsu?.budByKey?.[k]||Array(12).fill(0);
+    const pf=PIPE_FACTOR[k]??0;
+    return idxList.reduce((s,idx)=>{
+      if (isMonthClosedGlobal(idx)) return s+(rawA[idx]||0);
+      return s+(fcA[idx]||0)+(pf!==0?pipeMonthlyKPI[idx]*pf:0);
+    },0);
+  };
   const bud=k=>sumAcross(yd.budByKey[k],idxList);
   const rate=(a,b)=>b?(a/b*100).toFixed(1)+'%':'0.0%';
   const barW=(a,b)=>b?Math.min(100,Math.max(0,a/b*100)).toFixed(1)+'%':'0%';
@@ -1442,7 +1441,10 @@ function renderPLKPIBoxes() {
 
 function renderPL2KPIs() {
   const {bsData}=S; if(!bsData) return;
-  const idxList=S.plSelPeriod?PERIOD_MONTHS[S.plSelPeriod]:[(S.plSelMonth||1)-1];
+  /* 月選択時は常に1月〜選択月の累計 */
+  const idxList=S.plSelPeriod
+    ? PERIOD_MONTHS[S.plSelPeriod]
+    : Array.from({length:S.plSelMonth||1},(_,i)=>i);
   const lastIdx=idxList[idxList.length-1];
   const cashArr=getCash(); const cash=cashArr[lastIdx];
   const prevCash=lastIdx>0?cashArr[lastIdx-1]:0;
@@ -1460,11 +1462,10 @@ function renderPLDetail() {
   const {yojitsu,bsData}=S; if(!yojitsu&&!bsData) return;
   buildMonthButtons();
   if (!S.plSelMonth) S.plSelMonth=getLatestDataMonth();
-  if (!S.plMode) S.plMode='actual';
   /* ★ 最終締め月セレクターの値を復元 */
   const sel=document.getElementById('pl-last-closed');
   if (sel) sel.value=S.lastClosedMonth||'';
-  setPLMode(S.plMode); updateMonthButtonActive(); updatePLBadge();
+  updateMonthButtonActive(); updatePLBadge();
   renderPLKPIBoxes(); renderPL1(); renderPL2(); renderPL3();
 }
 
@@ -1492,19 +1493,19 @@ function renderPL1() {
   const {yojitsu}=S;
   const el=document.getElementById('pl1-tbl');
   if (!el||!yojitsu) { if(el) el.innerHTML='<div class="empty-msg">予実管理シートを読み込んでください</div>'; return; }
-  const idxList=S.plSelPeriod?PERIOD_MONTHS[S.plSelPeriod]:[(S.plSelMonth||1)-1];
+  /* 月選択時は常に1月〜選択月の累計 */
+  const idxList=S.plSelPeriod
+    ? PERIOD_MONTHS[S.plSelPeriod]
+    : Array.from({length:S.plSelMonth||1},(_,i)=>i);
 
   /* ★ FIX: isMonthClosedGlobal を使用（旧: yojitsu.rawByKey['販売管理費 計']参照） */
-  const closed=S.plSelPeriod
-    ? isMonthClosedGlobal(idxList[idxList.length-1])
-    : isMonthClosedGlobal(idxList[0]);
+  /* 選択月（idxListの末尾）で確定/予測を判定 */
+  const closed=isMonthClosedGlobal(idxList[idxList.length-1]);
 
   const actualLabel=closed?'実績':'Forecast';
   const actualBadge=closed
     ?`<span style="font-size:9px;background:#1E7D4A;color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px">確定</span>`
-    :S.plMode==='actual'
-      ?`<span style="font-size:9px;background:#2A4FAF;color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px">予測</span>`
-      :`<span style="font-size:9px;background:#D0480A;color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px">見込</span>`;
+    :`<span style="font-size:9px;background:#2A4FAF;color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px">予測</span>`;
 
   function getPrevIdxList(idxList) {
     if (S.plSelPeriod) { const len=idxList.length,start=idxList[0]; if(start<len) return null; return idxList.map(i=>i-len); }
@@ -1513,10 +1514,22 @@ function renderPL1() {
   const prevIdxList=getPrevIdxList(idxList);
   const prevLabel=S.plSelPeriod?`前${S.plSelPeriod}`:(prevIdxList?`前月(${MONTH_NAMES[prevIdxList[0]]})`:' 前月');
 
+  /* 累計ラベル・当月ラベル */
+  const cumulLabel = S.plSelPeriod
+    ? `${S.plSelPeriod}累計`
+    : `累計（1〜${S.plSelMonth||1}月）`;
+  const monthLabel = S.plSelPeriod
+    ? S.plSelPeriod
+    : `${S.plSelMonth||1}月`;
+  /* 当月（単月）の値を計算するヘルパー */
+  const singleIdx = idxList[idxList.length-1]; // 選択月の0-based index
   let html=`<table class="pl1-tbl"><thead><tr>
-    <th style="width:150px">科目</th><th>予算</th><th>${actualLabel}${actualBadge}</th>
-    <th title="${actualLabel}－予算">予算差</th><th style="width:62px">予算比</th>
-    <th>前月差</th><th style="width:62px">前月比</th>
+    <th style="width:140px">科目</th>
+    <th style="background:#2d4090;border-left:2px solid rgba(255,255,255,.3)">${monthLabel}</th>
+    <th style="background:#243580;border-left:1px solid rgba(255,255,255,.2)">${cumulLabel}${actualBadge}</th>
+    <th>予算</th>
+    <th title="累計－予算">予算差</th><th style="width:58px">予算比</th>
+    <th>前月差</th><th style="width:58px">前月比</th>
   </tr></thead><tbody>`;
 
   const PIPE_COST_RATE=0.5;
@@ -1525,18 +1538,29 @@ function renderPL1() {
   function calcRow(key,isOther,customActArr) {
     const rawArr=isOther?yojitsu.rawByKey['__other']:(S.yojitsu?.rawByKey?.[key]||Array(12).fill(0));
     const fcBase=isOther?(yojitsu.fcByKey?.['__other']||Array(12).fill(0)):(yojitsu.fcByKey?.[key]||yojitsu.budByKey?.[key]||Array(12).fill(0));
-    const factor=(!closed&&!isOther)?(PIPE_FACTOR[key]??0):0;
-    const pipeArr=factor!==0?getPipeMonthlyTotal():null;
-    const fcArr=fcBase.map((v,i)=>v+(pipeArr?pipeArr[i]*factor:0));
-    const actArr=customActArr||(closed?rawArr:fcArr);
+    const pipeMonthly=getPipeMonthlyTotal();
     const budArr=isOther?(yojitsu.budByKey['__other']||Array(12).fill(0)):yojitsu.budByKey[key];
-    const act=sumAcross(actArr,idxList), bud=sumAcross(budArr,idxList);
-    const prevAct=prevIdxList?sumAcross(actArr,prevIdxList):null;
-    const yojitsuDiff=bud!==0?act-bud:null;
-    let yojitsuRate='0.0%'; if(bud!==0) yojitsuRate=(act/Math.abs(bud)*100).toFixed(1)+'%';
-    const prevDiff=prevAct!==null?act-prevAct:null;
-    let prevRate='-'; if(prevAct!==null&&prevAct!==0) prevRate=(act/Math.abs(prevAct)*100).toFixed(1)+'%';
-    return {act,bud,yojitsuDiff,yojitsuRate,prevAct,prevDiff,prevRate};
+    /* 月ごとにactual/forecastを判定 */
+    const calcMonthVal=(idx)=>{
+      /* 締め月以前=rawArr(実績)、以降=fcBase(予算FC)+パイプライン */
+      if (customActArr) return customActArr[idx]||0;
+      if (isOther) return rawArr[idx]||0;
+      if (isMonthClosedGlobal(idx)) return rawArr[idx]||0;
+      const pipeFactor=PIPE_FACTOR[key]??0;
+      return (fcBase[idx]||0)+(pipeFactor!==0?pipeMonthly[idx]*pipeFactor:0);
+    };
+    /* 累計: Jan〜選択月の合計 */
+    const act=idxList.reduce((s,i)=>s+calcMonthVal(i),0);
+    /* 単月: 選択月のみ（予算差・予算比・前月差・前月比の基準） */
+    const single=calcMonthVal(singleIdx);
+    /* 予算・差異はすべて単月ベース */
+    const bud=budArr?(budArr[singleIdx]||0):0;
+    const prevSingle=singleIdx>0?calcMonthVal(singleIdx-1):null;
+    const yojitsuDiff=bud!==0?single-bud:null;
+    let yojitsuRate='0.0%'; if(bud!==0) yojitsuRate=(single/Math.abs(bud)*100).toFixed(1)+'%';
+    const prevDiff=prevSingle!==null?single-prevSingle:null;
+    let prevRate='-'; if(prevSingle!==null&&prevSingle!==0) prevRate=(single/Math.abs(prevSingle)*100).toFixed(1)+'%';
+    return {act,single,bud,yojitsuDiff,yojitsuRate,prevDiff,prevRate};
   }
 
   const numClass=(v,invert)=>{ if(!v||v===0) return ''; const pos=invert?v<0:v>0; return pos?'pos':'neg'; };
@@ -1549,27 +1573,55 @@ function renderPL1() {
       const budNumer=sumAcross(yojitsu.budByKey[row.numer],idxList),budDenom=sumAcross(yojitsu.budByKey[row.denom],idxList);
       const actRate=denom?(numer/denom*100):0,budRate=budDenom?(budNumer/budDenom*100):0;
       const diff=actRate-budRate, rateCol=actRate>=0?'var(--green)':'var(--red)';
-      html+=`<tr style="background:#F9FAFD"><td style="padding-left:16px;color:var(--muted);font-size:10px">${row.label}</td><td class="num" style="color:var(--muted);font-size:10px">${budRate?budRate.toFixed(1)+'%':'-'}</td><td class="num" style="font-weight:600;font-size:10px;color:${rateCol}">${actRate.toFixed(1)}%</td><td class="num" style="font-size:10px;color:${diff>=0?'var(--green)':'var(--red)'}">${budRate?diff.toFixed(1)+'pt':'-'}</td><td colspan="3" style="color:var(--muted);font-size:10px"></td></tr>`;
+      html+=`<tr style="background:#F9FAFD">
+        <td style="padding-left:16px;color:var(--muted);font-size:10px">${row.label}</td>
+        <td style="border-left:2px solid var(--border)"></td>
+        <td class="num" style="font-weight:600;font-size:10px;color:${rateCol};border-left:1px solid var(--border)">${actRate.toFixed(1)}%</td>
+        <td class="num" style="color:var(--muted);font-size:10px">${budRate?budRate.toFixed(1)+'%':'-'}</td>
+        <td class="num" style="font-size:10px;color:${diff>=0?'var(--green)':'var(--red)'}">${budRate?diff.toFixed(1)+'pt':'-'}</td>
+        <td colspan="3" style="color:var(--muted);font-size:10px"></td>
+      </tr>`;
       return;
     }
     const isExpense=['外注費','交際費','会議費','旅費交通費','__other','販売管理費 計'].includes(row.key);
     const isOther=row.key==='__other';
-    const {act,bud,yojitsuDiff,yojitsuRate,prevDiff,prevRate}=calcRow(row.key,isOther);
+    const {act,single,bud,yojitsuDiff,yojitsuRate,prevDiff,prevRate}=calcRow(row.key,isOther);
     const yjDiffClass=isExpense?numClass(yojitsuDiff,true):numClass(yojitsuDiff,false);
     const pvDiffClass=isExpense?numClass(prevDiff,true):numClass(prevDiff,false);
     const rowClass=row.isSummary?'summary-row':(row.level===1?'sub-row':'');
     const drillKey=isOther?null:row.key;
-    const drillBtn=(drillKey&&S.glData&&S.plMode==='actual')?`<button class="pl1-drillbtn" onclick="openDrill('${drillKey}',${S.plSelMonth})">元帳</button>`:'';
-    html+=`<tr class="${rowClass}"><td>${row.label} ${drillBtn}</td><td class="num">${FC(bud)}</td><td class="num ${act<0?'neg':''}">${FC(act)}</td><td class="num ${yjDiffClass}">${FCD(yojitsuDiff)}</td><td class="num">${yojitsuRate}</td><td class="num ${pvDiffClass}">${prevDiff!==null?FC(prevDiff):'-'}</td><td class="num">${prevRate}</td></tr>`;
+    const drillBtn=(drillKey&&S.glData)?`<button class="pl1-drillbtn" onclick="openDrill('${drillKey}',${S.plSelMonth})">元帳</button>`:'';
+    html+=`<tr class="${rowClass}">
+      <td>${row.label} ${drillBtn}</td>
+      <td class="num ${single<0?'neg':''}" style="border-left:2px solid var(--border);color:var(--muted);font-size:10px">${FC(single)}</td>
+      <td class="num ${act<0?'neg':''}" style="border-left:1px solid var(--border);font-weight:${row.isSummary?700:400}">${FC(act)}</td>
+      <td class="num">${FC(bud)}</td>
+      <td class="num ${yjDiffClass}">${FCD(yojitsuDiff)}</td>
+      <td class="num">${yojitsuRate}</td>
+      <td class="num ${pvDiffClass}">${prevDiff!==null?FC(prevDiff):'-'}</td>
+      <td class="num">${prevRate}</td>
+    </tr>`;
     if (row.isOtherHead&&S.pl3Expand) {
       yojitsu.otherDetailRows.forEach(dr=>{
-        const otherData=S.plMode==='forecast'?(dr.budget&&dr.budget.some(v=>v)?dr.budget:dr.actual):dr.actual;
+        /* 締め月以前=actual、以降=FC */
+        const otherData=dr.actual.map((v,i)=>isMonthClosedGlobal(i)?(v||0):((dr.fc||dr.budget)[i]||0));
         const da=sumAcross(otherData,idxList),db=sumAcross(dr.budget,idxList);
         const dPrevAct=prevIdxList?sumAcross(otherData,prevIdxList):null;
         const dYjDiff=db!==0?da-db:null,dYjRate=db!==0?(da/Math.abs(db)*100).toFixed(1)+'%':'-';
         const dPvDiff=dPrevAct!==null?da-dPrevAct:null,dPvRate=(dPrevAct!==null&&dPrevAct!==0)?(da/Math.abs(dPrevAct)*100).toFixed(1)+'%':'-';
-        const dBtn=(S.glData&&S.plMode==='actual')?`<button class="pl1-drillbtn" onclick="openDrill('${dr.label}',${S.plSelMonth})">元帳</button>`:'';
-        html+=`<tr class="other-sub-row"><td>${dr.label} ${dBtn}</td><td class="num">${FC(db)}</td><td class="num">${FC(sumAcross(closed?dr.actual:(dr.fc||dr.budget),idxList))}</td><td class="num ${numClass(dYjDiff,true)}">${FCD(dYjDiff)}</td><td class="num">${dYjRate}</td><td class="num ${numClass(dPvDiff,true)}">${FCD(dPvDiff)}</td><td class="num">${dPvRate}</td></tr>`;
+        const dBtn=S.glData?`<button class="pl1-drillbtn" onclick="openDrill('${dr.label}',${S.plSelMonth})">元帳</button>`:'';
+        const dActVal=idxList.reduce((s,i)=>s+(isMonthClosedGlobal(i)?(dr.actual[i]||0):((dr.fc||dr.budget)[i]||0)),0);
+        const dSingle=isMonthClosedGlobal(singleIdx)?(dr.actual[singleIdx]||0):((dr.fc||dr.budget)[singleIdx]||0);
+        html+=`<tr class="other-sub-row">
+          <td>${dr.label} ${dBtn}</td>
+          <td class="num" style="border-left:2px solid var(--border);color:var(--muted);font-size:10px">${FC(dSingle)}</td>
+          <td class="num" style="border-left:1px solid var(--border)">${FC(dActVal)}</td>
+          <td class="num">${FC(db)}</td>
+          <td class="num ${numClass(dYjDiff,true)}">${FCD(dYjDiff)}</td>
+          <td class="num">${dYjRate}</td>
+          <td class="num ${numClass(dPvDiff,true)}">${FCD(dPvDiff)}</td>
+          <td class="num">${dPvRate}</td>
+        </tr>`;
       });
     }
   });
@@ -1645,9 +1697,9 @@ function renderPL3() {
     yojitsu.otherDetailRows.forEach(dr=>{
       tbl+=`<tr class="pl3-row pl3-other-detail"><td>${dr.label}</td>`;
       for (let mi=0;mi<12;mi++){
-        const arr=S.plMode==='forecast'&&dr.budget?.some?.(v=>v)?dr.budget:dr.actual;
+        const arr=dr.actual.map((v,i)=>isMonthClosedGlobal(i)?(v||0):((dr.fc||dr.budget)[i]||0));
         const v=arr[mi]||0;
-        const onclk=(gl&&S.plMode==='actual')?`onclick="openDrill('${dr.label}',${mi+1})"` :'';
+        const onclk=gl?`onclick="openDrill('${dr.label}',${mi+1})"`:'';
         tbl+=`<td class="cell-clickable" ${onclk}>${FC(v)}</td>`;
       }
       tbl+='</tr>';
@@ -1672,13 +1724,7 @@ function openDrill(account,month) {
   const gl=S.glData, card=document.getElementById('pl4-card'), title=document.getElementById('pl4-title');
   const thead=document.getElementById('pl4-thead'), tbody=document.getElementById('pl4-tbody'), empty=document.getElementById('pl4-empty');
   if (!card) return;
-  if (S.plMode==='forecast') {
-    card.style.display='block'; card.scrollIntoView({behavior:'smooth',block:'nearest'});
-    title.textContent='⚠ ドリルスルーは Actual（実績）モードのみ利用可能です';
-    thead.innerHTML=''; tbody.innerHTML=''; if(empty) empty.style.display='none';
-    card.querySelector('.card-body').innerHTML='<div class="empty-msg" style="padding:24px;color:var(--orange)">📊 左上の「Actual（実績）」ボタンに切り替えると総勘定元帳の仕訳明細を確認できます</div>';
-    return;
-  }
+
   card.style.display='block'; card.scrollIntoView({behavior:'smooth',block:'nearest'});
   if (!gl) { title.textContent='ドリルスルー — 総勘定元帳データが未読み込みです'; thead.innerHTML=''; tbody.innerHTML=''; empty.textContent='総勘定元帳シートを含むExcelファイルを読み込むと、ここに取引明細が表示されます。'; empty.style.display='block'; return; }
   const accountLabel=account==='__other'?'その他経費':account;
