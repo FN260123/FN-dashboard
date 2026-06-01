@@ -1414,15 +1414,13 @@ function renderPLKPIBoxes() {
   const PIPE_FACTOR={'売上高':1,'売上高 計':1,'売上総損益金額':1,'外注費':0.5};
   const pipeArr=getPipeMonthlyTotal();
   const pipeAdd=(k)=>{ const f=(!closed&&PIPE_FACTOR[k]!==undefined)?PIPE_FACTOR[k]:0; return f!==0?sumAcross(pipeArr,idxList)*f:0; };
-  /* 締め月以前=rawByKey(実績)、以降=fcByKey(予算FC)+パイプライン */
-  const pipeMonthlyKPI=getPipeMonthlyTotal();
+  /* 締め月以前=rawByKey(実績)、以降=fcByKey(予算FC) */
   const act=k=>{
     const rawA=S.yojitsu?.rawByKey?.[k]||Array(12).fill(0);
     const fcA=S.yojitsu?.fcByKey?.[k]||S.yojitsu?.budByKey?.[k]||Array(12).fill(0);
-    const pf=PIPE_FACTOR[k]??0;
     return idxList.reduce((s,idx)=>{
       if (isMonthClosedGlobal(idx)) return s+(rawA[idx]||0);
-      return s+(fcA[idx]||0)+(pf!==0?pipeMonthlyKPI[idx]*pf:0);
+      return s+(fcA[idx]||0);
     },0);
   };
   const bud=k=>sumAcross(yd.budByKey[k],idxList);
@@ -1538,16 +1536,14 @@ function renderPL1() {
   function calcRow(key,isOther,customActArr) {
     const rawArr=isOther?yojitsu.rawByKey['__other']:(S.yojitsu?.rawByKey?.[key]||Array(12).fill(0));
     const fcBase=isOther?(yojitsu.fcByKey?.['__other']||Array(12).fill(0)):(yojitsu.fcByKey?.[key]||yojitsu.budByKey?.[key]||Array(12).fill(0));
-    const pipeMonthly=getPipeMonthlyTotal();
     const budArr=isOther?(yojitsu.budByKey['__other']||Array(12).fill(0)):yojitsu.budByKey[key];
     /* 月ごとにactual/forecastを判定 */
     const calcMonthVal=(idx)=>{
-      /* 締め月以前=rawArr(実績)、以降=fcBase(予算FC)+パイプライン */
+      /* 締め月以前=rawArr(実績)、以降=fcBase(予算FC) */
       if (customActArr) return customActArr[idx]||0;
       if (isOther) return rawArr[idx]||0;
       if (isMonthClosedGlobal(idx)) return rawArr[idx]||0;
-      const pipeFactor=PIPE_FACTOR[key]??0;
-      return (fcBase[idx]||0)+(pipeFactor!==0?pipeMonthly[idx]*pipeFactor:0);
+      return fcBase[idx]||0;
     };
     /* 累計: Jan〜選択月の合計 */
     const act=idxList.reduce((s,i)=>s+calcMonthVal(i),0);
