@@ -614,6 +614,10 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
         </table>
         <canvas id="projChart" height="100"></canvas>
 
+        <!-- アラートバナー -->
+        <div id="kosuu-alert" style="display:none;margin-top:10px;padding:8px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;font-size:11px;font-weight:600;color:#DC2626"></div>
+        <div id="kosuu-cap-alert" style="display:none"></div>
+
         <!-- メンバー別工数割当 -->
         <div style="margin-top:14px">
           <div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:6px">
@@ -1147,7 +1151,8 @@ function getPipeTotal() {
   let t=0;
   getPipeCompanies().forEach(c => {
     const d=S.pipeData[c.key]; if(!d) return;
-    t += (d.fixed||0)*12 + (d.variable||[]).reduce((s,v)=>s+v,0);
+    const fixedArr=d.fixedMonths||Array(12).fill(d.fixed||0);
+    t += fixedArr.reduce((s,v)=>s+(v||0),0) + (d.variable||[]).reduce((s,v)=>s+(v||0),0);
   });
   return t;
 }
@@ -1155,8 +1160,8 @@ function getPipeMonthlyTotal() {
   const arr=Array(12).fill(0);
   getPipeCompanies().forEach(c => {
     const d=S.pipeData[c.key]; if(!d) return;
-    const fixed=d.fixed||0;
-    (d.variable||[]).forEach((v,i)=>{ arr[i]+=fixed+(v||0); });
+    const fixedArr=d.fixedMonths||Array(12).fill(d.fixed||0);
+    (d.variable||[]).forEach((v,i)=>{ arr[i]+=fixedArr[i]+(v||0); });
   });
   return arr;
 }
@@ -1254,13 +1259,14 @@ function renderPipeSummary() {
     const d = S.pipeData[c.key]||{fixed:0,variable:Array(12).fill(0)};
     const fixed = d.fixed||0;
     const varArr = d.variable||Array(12).fill(0);
-    const fixedTotal = fixed*12;
+    const fixedArr2=d.fixedMonths||Array(12).fill(fixed); const fixedTotal=fixedArr2.reduce((s,v)=>s+(v||0),0);
     const varTotal = varArr.reduce((s,v)=>s+(v||0),0);
     const subtotalArr = varArr.map(v => fixed+(v||0));
     const subtotalTotal = fixedTotal+varTotal;
     const rowBg = ci%2===0 ? '' : 'background:#FAFBFD';
 
-    /* 固定行 */
+    /* 固定行（全月個別入力）*/
+    const fixedArr=d.fixedMonths||Array(12).fill(fixed); /* 月別固定費配列（なければ全月同額）*/
     html+=`<tr style="${rowBg}">
       <td rowspan="3" style="color:${c.color};font-weight:700;font-size:11px;border-right:2px solid var(--border);vertical-align:middle;text-align:center">
         <div>${c.name.length>10?c.name.slice(0,10)+'…':c.name}</div>
@@ -1268,16 +1274,13 @@ function renderPipeSummary() {
           style="margin-top:4px;font-size:9px;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;border-radius:3px;cursor:pointer;padding:1px 6px;font-family:inherit;display:block;width:100%">削除</button>
       </td>
       <td style="font-size:10px;color:var(--muted);white-space:nowrap">固定</td>
-      ${mnths.map((_,mi)=>`<td>
-        ${mi===0
-          ? `<input class="pm-inp" data-key="${c.key}" data-type="fixed"
-              value="${fixed>0?fixed.toLocaleString('ja-JP'):''}" placeholder="0"
-              onchange="onPmInpChange(this)" onfocus="this.value=this.value.replace(/,/g,'')" onblur="fmtPmInp(this)"
-              style="width:56px" title="月額固定費（全月共通）">`
-          : `<span style="font-size:10px;color:var(--muted)">${fixed>0?fixed.toLocaleString('ja-JP'):'-'}</span>`
-        }
+      ${fixedArr.map((fv,mi)=>`<td>
+        <input class="pm-inp" data-key="${c.key}" data-mi="${mi}" data-type="fixedMonths"
+          value="${fv>0?fv.toLocaleString('ja-JP'):''}" placeholder="0"
+          onchange="onPmInpChange(this)" onfocus="this.value=this.value.replace(/,/g,'')" onblur="fmtPmInp(this)"
+          style="width:56px">
       </td>`).join('')}
-      <td style="font-size:10px;font-weight:600;text-align:right">${fixedTotal>0?F(fixedTotal):'-'}</td>
+      <td style="font-size:10px;font-weight:600;text-align:right">${fixedArr.reduce((s,v)=>s+(v||0),0)>0?F(fixedArr.reduce((s,v)=>s+(v||0),0)):'-'}</td>
     </tr>`;
 
     /* 変動行 */
@@ -1324,11 +1327,16 @@ function onPmInpChange(el) {
   const v=parseInt((el.value||'').replace(/,/g,''),10)||0;
   if (type==='fixed') {
     S.pipeData[key].fixed=v;
+  } else if (type==='fixedMonths' && mi!==null) {
+    /* 月別固定費 */
+    if (!S.pipeData[key].fixedMonths) S.pipeData[key].fixedMonths=Array(12).fill(S.pipeData[key].fixed||0);
+    S.pipeData[key].fixedMonths[mi]=v;
+    /* fixed は fixedMonths の平均（後方互換）*/
+    S.pipeData[key].fixed=Math.round(S.pipeData[key].fixedMonths.reduce((s,x)=>s+x,0)/12);
   } else if (type==='variable' && mi!==null) {
     if (!S.pipeData[key].variable) S.pipeData[key].variable=Array(12).fill(0);
     S.pipeData[key].variable[mi]=v;
   }
-  /* 小計セルをリアルタイム更新 */
   renderPipeSummary();
   onPipeChange();
 }
@@ -1516,6 +1524,44 @@ function refreshProjHours() {
 
   /* --- メンバー別工数割当テーブル --- */
   renderMemberAlloc(proj, cap, kadou4);
+
+  /* --- アラート: 案件ごとに 想定H vs メンバー割当H を比較 --- */
+  const alertEl=document.getElementById('kosuu-alert');
+  if (alertEl) {
+    const shortfalls=PROJ_CONFIG.map(({key,color})=>{
+      const est=S.kosuuEst?.[key]||0;
+      const alloc=MEMBERS.reduce((s,name)=>s+(S.memberAlloc?.[name]?.[key]||0),0);
+      return {key,color,est,alloc,gap:alloc-est};
+    }).filter(r=>r.est>0&&r.gap<0); /* 想定Hがあってかつ割当が下回る案件 */
+
+    if (shortfalls.length>0) {
+      alertEl.style.cssText='display:block;margin-top:10px;padding:8px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;font-size:11px;color:#DC2626';
+      alertEl.innerHTML='⚠ 以下の案件で想定工数に対してメンバー割当が不足しています：<br>'
+        +shortfalls.map(r=>`&nbsp;&nbsp;<span style="color:${r.color};font-weight:700">${r.key}</span>`
+          +`&emsp;想定 <b>${r.est}H</b> ／ 割当 <b>${r.alloc}H</b>`
+          +`&emsp;<span style="background:#FEE2E2;padding:1px 6px;border-radius:3px">不足 ${Math.abs(r.gap)}H</span>`
+        ).join('<br>');
+    } else if (PROJ_CONFIG.some(({key})=>(S.kosuuEst?.[key]||0)>0)) {
+      alertEl.style.cssText='display:block;margin-top:10px;padding:8px 12px;background:#F0FDF4;border:1px solid #86EFAC;border-radius:6px;font-size:11px;color:#166534';
+      alertEl.innerHTML='✅ 全案件のメンバー割当が想定工数を満たしています';
+    } else {
+      alertEl.style.display='none';
+    }
+
+    /* 想定合計 vs 全員の稼働可能H合計 */
+    const totalEstAll=PROJ_CONFIG.reduce((s,{key})=>s+(S.kosuuEst?.[key]||0),0);
+    const totalMemberCap=MEMBERS.reduce((s,name)=>s+(S.memberCapacity?.[name]||0),0);
+    const capAlertEl=document.getElementById('kosuu-cap-alert');
+    if (capAlertEl) {
+      if (totalEstAll>0&&totalMemberCap>0&&totalEstAll>totalMemberCap) {
+        const over=totalEstAll-totalMemberCap;
+        capAlertEl.style.cssText='display:block;margin-top:6px;padding:8px 12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:6px;font-size:11px;color:#C2410C';
+        capAlertEl.innerHTML=`⚠ 想定工数合計（<b>${totalEstAll}H</b>）がチーム全員の稼働可能時間合計（<b>${totalMemberCap}H</b>）を <b>${over}H</b> 超過しています`;
+      } else {
+        capAlertEl.style.display='none';
+      }
+    }
+  }
 
   S.projHours=proj; saveLS();
 }
