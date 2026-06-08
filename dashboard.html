@@ -475,6 +475,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   <div class="tab-bar">
     <button type="button" class="tab-btn active" id="tab-pl"     onclick="switchPage('pl')">📊 PL詳細</button>
     <button type="button" class="tab-btn"        id="tab-keiei" onclick="switchPage('keiei')">🎯 営業・稼働管理</button>
+    <button type="button" class="tab-btn"        id="tab-kosuu" onclick="switchPage('kosuu')">⏱ 工数管理</button>
     <button onclick="doLogout()" title="ログアウト" style="
       margin-left:auto;margin-right:12px;
       display:flex;align-items:center;gap:6px;
@@ -570,8 +571,13 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
         </div>
       </div>
     </div>
+  </div>
+  </div><!-- /page-keiei -->
 
-    <div class="card">
+  <!-- ══ 工数管理ページ ══════════════════════════════════ -->
+  <div id="page-kosuu" style="display:none">
+  <div class="wrap">
+<div class="card">
       <div class="card-hdr">
         <span class="card-badge">④</span>
         <span class="card-title">案件別工数計画 vs チーム稼働可能時間</span>
@@ -584,19 +590,44 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
       </div>
       <div class="card-body">
         <div class="proj-summary">
-          <div class="ps-item"><div class="ps-val" style="color:#C0392B" id="ps-proj">--H</div><div class="ps-lbl">案件工数合計（必要）</div></div>
+          <div class="ps-item"><div class="ps-val" style="color:#1C2D6B" id="ps-proj">--H</div><div class="ps-lbl">固定工数合計</div></div>
+          <div class="ps-item"><div class="ps-val" style="color:#D0480A" id="ps-est">--H</div><div class="ps-lbl">想定工数合計</div></div>
           <div class="ps-item"><div class="ps-val" style="color:#1C2D6B" id="ps-cap">--H</div><div class="ps-lbl">チーム稼働可能時間</div></div>
           <div class="ps-item"><div class="ps-val" id="ps-surplus">--H</div><div class="ps-lbl">余剰キャパシティ</div></div>
           <div class="ps-item"><div class="ps-rate" id="ps-rate" style="font-size:11px;margin-top:0">--</div><div class="ps-rate" id="ps-status" style="margin-top:6px">--</div></div>
         </div>
-        <div class="proj-inputs">
-          <div class="proj-inp-group"><div class="proj-inp-label">CAMELORS（H）</div><input class="proj-inp" data-proj="CAMELORS" type="number" min="0" value="40"></div>
-          <div class="proj-inp-group"><div class="proj-inp-label">HANOWA（H）</div><input class="proj-inp" data-proj="HANOWA" type="number" min="0" value="10"></div>
-          <div class="proj-inp-group"><div class="proj-inp-label">武田事務所（H）</div><input class="proj-inp" data-proj="武田" type="number" min="0" value="30"></div>
-          <div class="proj-inp-group"><div class="proj-inp-label">MAYA（H）</div><input class="proj-inp" data-proj="MAYA" type="number" min="0" value="100"></div>
-          <div class="proj-inp-group"><div class="proj-inp-label">ブリッジ（H）</div><input class="proj-inp" data-proj="ブリッジ" type="number" min="0" value="0"></div>
-        </div>
+        <!-- 案件別工数入力テーブル（固定H + 想定H）-->
+        <table id="kosuu-proj-tbl" style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">
+          <thead><tr style="background:var(--navy);color:#fff">
+            <th style="padding:5px 8px;text-align:left">案件</th>
+            <th style="padding:5px 8px;text-align:center" title="月額固定でコミットしている稼働時間">固定稼働H</th>
+            <th style="padding:5px 8px;text-align:center" title="固定以外に想定される稼働時間">想定稼働H</th>
+            <th style="padding:5px 8px;text-align:center">合計H</th>
+          </tr></thead>
+          <tbody id="kosuu-proj-body"></tbody>
+          <tfoot><tr style="background:var(--navy-pale);font-weight:700">
+            <td style="padding:5px 8px">合計</td>
+            <td style="padding:5px 8px;text-align:right" id="kosuu-fixed-tot">0H</td>
+            <td style="padding:5px 8px;text-align:right" id="kosuu-est-tot">0H</td>
+            <td style="padding:5px 8px;text-align:right" id="kosuu-total-tot">0H</td>
+          </tr></tfoot>
+        </table>
         <canvas id="projChart" height="100"></canvas>
+
+        <!-- メンバー別工数割当 -->
+        <div style="margin-top:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:6px">
+            👥 メンバー別工数割当
+            <span style="font-weight:400;color:var(--muted);font-size:10px;margin-left:8px">稼働可能H = ⑤ガントから自動取得</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table id="kosuu-member-tbl" style="width:100%;border-collapse:collapse;font-size:11px;min-width:600px">
+              <thead id="kosuu-member-head"></thead>
+              <tbody id="kosuu-member-body"></tbody>
+              <tfoot id="kosuu-member-foot"></tfoot>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -625,8 +656,8 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
         </div>
       </div>
     </div>
-  </div>
-  </div><!-- /page-keiei -->
+  </div>  </div>
+  </div><!-- /page-kosuu -->
 
   <!-- ══ PL 予実管理ページ ══════════════════════════════ -->
   <div id="page-pl">
@@ -721,6 +752,22 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
           <span style="width:1px;height:16px;background:var(--border);display:inline-block;vertical-align:middle;margin:0 4px;flex-shrink:0;"></span>
           <span style="font-size:10px;color:var(--muted);margin-right:2px;white-space:nowrap;">月：</span>
           <div id="pl-month-btns" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+          <span style="width:1px;height:16px;background:var(--border);display:inline-block;margin:0 4px;flex-shrink:0;"></span>
+          <span style="font-size:10px;color:var(--muted);white-space:nowrap;">表示：</span>
+          <div style="display:flex;gap:3px;flex-shrink:0">
+            <button type="button" id="pl-view-monthly" onclick="setPlViewMode('monthly')"
+              style="font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-weight:700;cursor:pointer;font-family:inherit">単月</button>
+            <button type="button" id="pl-view-cumul" onclick="setPlViewMode('cumulative')"
+              style="font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:var(--white);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit">累計</button>
+          </div>
+          <span style="width:1px;height:16px;background:var(--border);display:inline-block;margin:0 4px;flex-shrink:0;"></span>
+          <span style="font-size:10px;color:var(--muted);white-space:nowrap;">比較：</span>
+          <div style="display:flex;gap:3px;flex-shrink:0">
+            <button type="button" id="pl-cmp-prevmonth" onclick="setPlCompareMode('prevMonth')"
+              style="font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-weight:700;cursor:pointer;font-family:inherit">前月比</button>
+            <button type="button" id="pl-cmp-prevyear" onclick="setPlCompareMode('prevYear')"
+              style="font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:var(--white);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit">前年比</button>
+          </div>
         </div>
         <div class="card-body" style="padding:0">
           <div id="pl1-tbl"></div>
@@ -783,6 +830,8 @@ const F      = v => '¥' + Math.abs(Math.round(v)).toLocaleString('ja-JP');
 const Pct    = (v,t) => Math.min(100, Math.max(0, v / t * 100));
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 const PIPE_COLORS = ['#1C2D6B','#4A85C8','#F0A000','#D0480A','#1E7D4A'];
+const MEMBERS = ['近藤','栄井','杉浦','原','左座'];
+
 const PROJ_CONFIG = [
   {key:'CAMELORS', color:'#1C2D6B'},
   {key:'HANOWA',   color:'#4A85C8'},
@@ -801,8 +850,14 @@ let S = {
   plActualSheet:null, plBudgetSheet:null,
   yojitsu:null, bsData:null, glData:null, plSelMonth:null, plSelPeriod:null, pl3Expand:false,
   /* ★ FIX: 最終締め月（null=自動判定、1-12=手動設定月） */
+  plViewMode:'monthly',    /* 'monthly'=単月 / 'cumulative'=累計 */
+  plCompareMode:'prevMonth', /* 'prevMonth'=前月比 / 'prevYear'=前年比 */
   lastClosedMonth: null,
   pipeData: {},
+  kosuuEst: {},    /* 案件別想定工数 {key:hours} */
+  memberAlloc: {}, /* メンバー別割当 {name:{key:hours}} */
+  memberCapacity: {}, /* メンバー別稼働可能H（手動設定） */
+  pipeCompanies: null, /* null時はPIPE_CLIENTSを使用（初期化後に動的配列へ）*/
 };
 
 /* ═════════════════════════════════════════════════════════
@@ -1062,6 +1117,11 @@ function renderRevChart() {
 }
 
 /* ── パイプライン管理 ──────────────────────────────────── */
+/* 動的会社リスト取得 */
+function getPipeCompanies() {
+  return S.pipeCompanies || PIPE_CLIENTS;
+}
+
 const PIPE_CLIENTS = [
   { key:'CAMELORS', name:'CAMELORS株式会社',          color:'#1C2D6B' },
   { key:'HANOWA',   name:'株式会社HANOWA',             color:'#4A85C8' },
@@ -1070,10 +1130,68 @@ const PIPE_CLIENTS = [
   { key:'ブリッジ',  name:'ブリッジコンサルティンググループ', color:'#1E7D4A' },
 ];
 if (!S.pipeData) S.pipeData = {};
-function initPipeData() { PIPE_CLIENTS.forEach(c => { if (!S.pipeData[c.key]) S.pipeData[c.key] = { months:Array(12).fill(0), hours:Array(12).fill(0) }; }); }
-function getPipeTotal() { let t=0; PIPE_CLIENTS.forEach(c => { const d=S.pipeData[c.key]; if(d) t+=d.months.reduce((s,v)=>s+v,0); }); return t; }
-function getPipeMonthlyTotal() { const arr=Array(12).fill(0); PIPE_CLIENTS.forEach(c => { const d=S.pipeData[c.key]; if(d) d.months.forEach((v,i)=>{ arr[i]+=v; }); }); return arr; }
+function initPipeData() {
+  if (!S.pipeCompanies) S.pipeCompanies = PIPE_CLIENTS.map(c=>({...c}));
+  getPipeCompanies().forEach(c => {
+    if (!S.pipeData[c.key]) {
+      S.pipeData[c.key] = { fixed:0, variable:Array(12).fill(0) };
+    } else if (S.pipeData[c.key].months !== undefined) {
+      /* 旧形式(months/hours)から新形式(fixed/variable)へ移行 */
+      const old = S.pipeData[c.key];
+      S.pipeData[c.key] = { fixed:0, variable: old.months || Array(12).fill(0) };
+    }
+    if (!S.pipeData[c.key].variable) S.pipeData[c.key].variable = Array(12).fill(0);
+  });
+}
+function getPipeTotal() {
+  let t=0;
+  getPipeCompanies().forEach(c => {
+    const d=S.pipeData[c.key]; if(!d) return;
+    t += (d.fixed||0)*12 + (d.variable||[]).reduce((s,v)=>s+v,0);
+  });
+  return t;
+}
+function getPipeMonthlyTotal() {
+  const arr=Array(12).fill(0);
+  getPipeCompanies().forEach(c => {
+    const d=S.pipeData[c.key]; if(!d) return;
+    const fixed=d.fixed||0;
+    (d.variable||[]).forEach((v,i)=>{ arr[i]+=fixed+(v||0); });
+  });
+  return arr;
+}
 function getPipeHoursTotal() { const total=Array(12).fill(0); const byClient={}; PIPE_CLIENTS.forEach(c => { const d=S.pipeData[c.key]; byClient[c.key]=d?[...d.hours]:Array(12).fill(0); if(d) d.hours.forEach((v,i)=>{ total[i]+=v; }); }); return { total, byClient }; }
+
+
+/* 会社追加 */
+function addPipeCompany() {
+  const inp = document.getElementById('pipe-new-name');
+  if (!inp) return;
+  const name = inp.value.trim();
+  if (!name) { inp.focus(); return; }
+  if (!S.pipeCompanies) S.pipeCompanies = PIPE_CLIENTS.map(c=>({...c}));
+  const key = 'custom_' + Date.now();
+  const colors = ['#6C5CE7','#00B894','#E17055','#74B9FF','#A29BFE','#FD79A8','#55EFC4'];
+  const color = colors[S.pipeCompanies.length % colors.length];
+  S.pipeCompanies.push({key, name, color});
+  S.pipeData[key] = {fixed:0, variable:Array(12).fill(0)};
+  inp.value = '';
+  saveLS();
+  renderPipeSummary();
+  onPipeChange();
+}
+
+/* 会社削除 */
+function removePipeCompany(key) {
+  if (!Array.isArray(S.pipeCompanies)) S.pipeCompanies = PIPE_CLIENTS.map(c=>({...c}));
+  S.pipeCompanies = S.pipeCompanies.filter(c=>c.key!==key);
+  delete S.pipeData[key];
+  saveLS();
+  renderPipeSummary();
+  onPipeChange();
+}
+/* windowに明示登録してどのスコープからでも呼べるようにする */
+window.removePipeCompany = removePipeCompany;
 
 function onPipeChange() {
   saveLS();
@@ -1093,54 +1211,143 @@ function togglePipeDetail() {
 
 function renderPipeSummary() {
   initPipeData();
+  const companies = getPipeCompanies();
   const list = document.getElementById('pipe-summary-list');
   if (!list) return;
-  list.innerHTML = PIPE_CLIENTS.map(c => {
-    const d=S.pipeData[c.key]; const tot=d?d.months.reduce((s,v)=>s+v,0):0; const hTot=d?d.hours.reduce((s,v)=>s+v,0):0;
-    return `<div class="pipe-sum-row"><span class="pipe-sum-dot" style="background:${c.color}"></span><span class="pipe-sum-name">${c.name}</span><span class="pipe-sum-h" style="color:var(--muted)">${hTot>0?hTot+'H':'-'}</span><span class="pipe-sum-total">${tot>0?F(tot):'¥0'}</span></div>`;
+
+  /* サマリーリスト（イベントリスナー方式で確実に動作） */
+  list.innerHTML = companies.map(c => {
+    const d = S.pipeData[c.key] || {fixed:0,variable:Array(12).fill(0)};
+    const fixed = d.fixed||0;
+    const varTotal = (d.variable||[]).reduce((s,v)=>s+(v||0),0);
+    const subtotal = fixed*12 + varTotal;
+    return `<div class="pipe-sum-row" style="align-items:center">
+      <span class="pipe-sum-dot" style="background:${c.color}"></span>
+      <span class="pipe-sum-name">${c.name}</span>
+
+      <span style="font-size:10px;color:var(--muted);width:90px;text-align:right;flex-shrink:0">固定 ${fixed>0?F(fixed):'-'}</span>
+      <span class="pipe-sum-total">${subtotal>0?F(subtotal):'¥0'}</span>
+    </div>`;
   }).join('');
-  const tbl = document.getElementById('pipe-monthly-tbl'); if (!tbl) return;
+
+  /* 会社追加UI */
+  list.innerHTML += `<div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+    <input id="pipe-new-name" placeholder="会社名を入力" style="flex:1;font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-family:inherit;color:var(--navy)">
+    <button id="pipe-add-btn" style="font-size:10px;padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:inherit;white-space:nowrap">+ 会社を追加</button>
+  </div>`;
+
+  /* イベントはbody委譲で処理（initPipeEvents参照）*/
+
+  /* 月別テーブル（会社ごとに 固定行/変動行/小計行） */
+  const tbl = document.getElementById('pipe-monthly-tbl');
+  if (!tbl) return;
   const mnths = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-  let html = `<tr class="pmtbl-hdr"><th>案件</th>${mnths.map(m=>`<th>${m}</th>`).join('')}<th class="pmtbl-h">工数計(H)</th></tr>`;
-  PIPE_CLIENTS.forEach(c => {
-    const d=S.pipeData[c.key]||{months:Array(12).fill(0),hours:Array(12).fill(0)};
-    const hTot=d.hours.reduce((s,v)=>s+v,0);
-    html+=`<tr><td style="color:${c.color}">${c.name.length>10?c.name.slice(0,10)+'…':c.name}（¥）</td>${d.months.map((v,mi)=>`<td><input class="pm-inp" data-key="${c.key}" data-mi="${mi}" data-type="amt" value="${v>0?v.toLocaleString('ja-JP'):''}" placeholder="0" onchange="onPmInpChange(this)" onfocus="this.value=this.value.replace(/,/g,'')" onblur="fmtPmInp(this)"></td>`).join('')}<td class="pmtbl-h" style="font-size:10px;color:var(--muted)" id="pipe-h-tot-${c.key}">${hTot>0?hTot+'H':'-'}</td></tr>`;
-    html+=`<tr><td style="color:var(--muted);font-size:9px;padding-left:12px">　工数（H）</td>${d.hours.map((v,mi)=>`<td><input class="pm-inp" data-key="${c.key}" data-mi="${mi}" data-type="h" value="${v>0?v:''}" placeholder="0" type="number" min="0" onchange="onPmInpChange(this)"></td>`).join('')}<td></td></tr>`;
+
+  let html = `<tr>
+    <th style="min-width:100px">案件</th>
+    <th style="min-width:50px">種別</th>
+    ${mnths.map(m=>`<th style="min-width:60px">${m}</th>`).join('')}
+    <th style="min-width:70px">合計</th>
+  </tr>`;
+
+  companies.forEach((c, ci) => {
+    const d = S.pipeData[c.key]||{fixed:0,variable:Array(12).fill(0)};
+    const fixed = d.fixed||0;
+    const varArr = d.variable||Array(12).fill(0);
+    const fixedTotal = fixed*12;
+    const varTotal = varArr.reduce((s,v)=>s+(v||0),0);
+    const subtotalArr = varArr.map(v => fixed+(v||0));
+    const subtotalTotal = fixedTotal+varTotal;
+    const rowBg = ci%2===0 ? '' : 'background:#FAFBFD';
+
+    /* 固定行 */
+    html+=`<tr style="${rowBg}">
+      <td rowspan="3" style="color:${c.color};font-weight:700;font-size:11px;border-right:2px solid var(--border);vertical-align:middle;text-align:center">
+        <div>${c.name.length>10?c.name.slice(0,10)+'…':c.name}</div>
+        <button onclick="removePipeCompany('${c.key}')"
+          style="margin-top:4px;font-size:9px;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;border-radius:3px;cursor:pointer;padding:1px 6px;font-family:inherit;display:block;width:100%">削除</button>
+      </td>
+      <td style="font-size:10px;color:var(--muted);white-space:nowrap">固定</td>
+      ${mnths.map((_,mi)=>`<td>
+        ${mi===0
+          ? `<input class="pm-inp" data-key="${c.key}" data-type="fixed"
+              value="${fixed>0?fixed.toLocaleString('ja-JP'):''}" placeholder="0"
+              onchange="onPmInpChange(this)" onfocus="this.value=this.value.replace(/,/g,'')" onblur="fmtPmInp(this)"
+              style="width:56px" title="月額固定費（全月共通）">`
+          : `<span style="font-size:10px;color:var(--muted)">${fixed>0?fixed.toLocaleString('ja-JP'):'-'}</span>`
+        }
+      </td>`).join('')}
+      <td style="font-size:10px;font-weight:600;text-align:right">${fixedTotal>0?F(fixedTotal):'-'}</td>
+    </tr>`;
+
+    /* 変動行 */
+    html+=`<tr style="${rowBg}">
+      <td style="font-size:10px;color:var(--muted);white-space:nowrap">変動</td>
+      ${varArr.map((v,mi)=>`<td>
+        <input class="pm-inp" data-key="${c.key}" data-mi="${mi}" data-type="variable"
+          value="${v>0?v.toLocaleString('ja-JP'):''}" placeholder="0"
+          onchange="onPmInpChange(this)" onfocus="this.value=this.value.replace(/,/g,'')" onblur="fmtPmInp(this)"
+          style="width:56px">
+      </td>`).join('')}
+      <td style="font-size:10px;font-weight:600;text-align:right">${varTotal>0?F(varTotal):'-'}</td>
+    </tr>`;
+
+    /* 小計行 */
+    html+=`<tr style="border-bottom:2px solid var(--border);${rowBg}">
+      <td style="font-size:10px;font-weight:700;color:var(--navy);white-space:nowrap">小計</td>
+      ${subtotalArr.map(v=>`<td style="font-size:10px;font-weight:600;text-align:right;color:var(--navy);background:#EEF2FA">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
+      <td style="font-size:11px;font-weight:700;text-align:right;color:var(--orange)">${subtotalTotal>0?F(subtotalTotal):'-'}</td>
+    </tr>`;
   });
-  const mTot=getPipeMonthlyTotal();
-  html+=`<tr class="pmtbl-total"><td>月別合計（¥）</td>${mTot.map(v=>`<td>${v>0?Math.round(v).toLocaleString('ja-JP'):'-'}</td>`).join('')}<td></td></tr>`;
-  tbl.className = 'pmtbl'; tbl.innerHTML = html;
-  const el=document.getElementById('pipeTot'); if(el) el.textContent=F(getPipeTotal());
+
+  /* 月別合計行 */
+  const mTot = getPipeMonthlyTotal();
+  const grandTotal = getPipeTotal();
+  html+=`<tr style="background:var(--navy-pale);font-weight:700;border-top:2px solid var(--navy)">
+    <td colspan="2" style="color:var(--navy)">月別合計</td>
+    ${mTot.map(v=>`<td style="text-align:right;font-size:10px;color:var(--navy)">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
+    <td style="text-align:right;color:var(--orange)">${F(grandTotal)}</td>
+  </tr>`;
+
+  tbl.className = 'pmtbl';
+  tbl.innerHTML = html;
+
+  const el = document.getElementById('pipeTot');
+  if (el) el.textContent = F(getPipeTotal());
 }
+
 
 function fmtPmInp(el) { const n=parseInt(el.value.replace(/,/g,''),10); el.value=(!isNaN(n)&&n>0)?n.toLocaleString('ja-JP'):''; }
 function onPmInpChange(el) {
-  const key=el.dataset.key,mi=+el.dataset.mi,type=el.dataset.type;
-  if (!S.pipeData[key]) S.pipeData[key]={months:Array(12).fill(0),hours:Array(12).fill(0)};
+  const key=el.dataset.key, mi=el.dataset.mi!==undefined?+el.dataset.mi:null, type=el.dataset.type;
+  if (!S.pipeData[key]) S.pipeData[key]={fixed:0,variable:Array(12).fill(0)};
   const v=parseInt((el.value||'').replace(/,/g,''),10)||0;
-  if (type==='amt') { S.pipeData[key].months[mi]=v; renderPipeTotRow(); }
-  else { S.pipeData[key].hours[mi]=v; const hTotEl=document.getElementById(`pipe-h-tot-${key}`); if(hTotEl) hTotEl.textContent=S.pipeData[key].hours.reduce((s,v)=>s+v,0)+'H'; }
+  if (type==='fixed') {
+    S.pipeData[key].fixed=v;
+  } else if (type==='variable' && mi!==null) {
+    if (!S.pipeData[key].variable) S.pipeData[key].variable=Array(12).fill(0);
+    S.pipeData[key].variable[mi]=v;
+  }
+  /* 小計セルをリアルタイム更新 */
+  renderPipeSummary();
   onPipeChange();
 }
-function renderPipeTotRow() {
-  const mTot=getPipeMonthlyTotal(), rows=document.querySelectorAll('#pipe-monthly-tbl tr.pmtbl-total');
-  if (rows[0]) { const tds=rows[0].querySelectorAll('td'); mTot.forEach((v,i)=>{ if(tds[i+1]) tds[i+1].textContent=v>0?Math.round(v).toLocaleString('ja-JP'):'-'; }); }
-  const el=document.getElementById('pipeTot'); if(el) el.textContent=F(getPipeTotal());
-}
-function syncPipeToProj() {
-  const mIdx=(()=>{ const kd=S.kadouData?.[S.kadouMode4||'current']; return kd?kd.month-1:(new Date().getMonth()); })();
-  PIPE_CLIENTS.forEach(c=>{ const d=S.pipeData[c.key]; const h=d?(d.hours[mIdx]||0):0; const inp=document.querySelector(`.proj-inp[data-proj="${c.key}"]`); if(inp&&h>0) inp.value=h; });
-  refreshProjHours();
-}
+function renderPipeTotRow() { /* replaced by renderPipeSummary */ }
+function syncPipeToProj() { refreshProjHours(); } /* 工数管理は④パネルで直接入力 */
 function renderPipelineInputs() {
   if (!S.pipeline?.clients) return;
   initPipeData();
+  /* Excelパイプラインから初期値を設定（固定費なし、変動として月均等配分） */
   S.pipeline.clients.forEach((client) => {
-    const cfg=PIPE_CLIENTS.find(c=>client.name.includes(c.key)); if(!cfg) return;
-    if (S.pipeData[cfg.key].months.every(v=>v===0)) {
-      const futureMonths=[5,6,7,8,9,10,11]; const perMonth=Math.round(client.amount/futureMonths.length);
-      futureMonths.forEach(mi=>{ S.pipeData[cfg.key].months[mi]=perMonth; });
+    const cfg=getPipeCompanies().find(c=>client.name.includes(c.key)); if(!cfg) return;
+    const d=S.pipeData[cfg.key];
+    if (!d) return;
+    const hasData=(d.fixed||0)>0||(d.variable||[]).some(v=>v>0);
+    if (!hasData && client.amount>0) {
+      const futureMonths=[5,6,7,8,9,10,11];
+      const perMonth=Math.round(client.amount/futureMonths.length);
+      if (!d.variable) d.variable=Array(12).fill(0);
+      futureMonths.forEach(mi=>{ d.variable[mi]=perMonth; });
     }
   });
   renderPipeSummary();
@@ -1148,25 +1355,168 @@ function renderPipelineInputs() {
 
 function getProjInputs() { const m={}; document.querySelectorAll('.proj-inp').forEach(el=>{ m[el.dataset.proj]=Number(el.value)||0; }); return m; }
 function getKadou4() { return (S.kadouData&&S.kadouData[S.kadouMode4||'current'])||S.kadou||null; }
+
+function getMemberCapacity(name) {
+  /* ガントデータからメンバーの稼働可能時間を取得 */
+  const kadou=getKadou4();
+  if (!kadou?.members) return 0;
+  const m=kadou.members.find(m=>m.name===name||m.name.includes(name.slice(0,2)));
+  return m?m.totalH:0;
+}
+
+function renderMemberAlloc(proj, cap, kadou4) {
+  const head=document.getElementById('kosuu-member-head');
+  const body=document.getElementById('kosuu-member-body');
+  const foot=document.getElementById('kosuu-member-foot');
+  if (!head||!body||!foot) return;
+  if (!S.memberAlloc) S.memberAlloc={};
+  if (!S.memberCapacity) S.memberCapacity={};
+  MEMBERS.forEach(m=>{
+    if (!S.memberAlloc[m]) S.memberAlloc[m]={};
+    /* 稼働可能H: 手動設定 > ガント自動取得 の優先順 */
+    if (!S.memberCapacity[m] && S.memberCapacity[m]!==0) {
+      const ganttH=getMemberCapacity(m);
+      if (ganttH>0) S.memberCapacity[m]=ganttH;
+    }
+  });
+
+  const projects=getPipeCompanies().map(c=>c.key);
+
+  /* ヘッダー */
+  head.innerHTML=`<tr style="background:var(--navy);color:#fff">
+    <th style="padding:5px 8px;text-align:left;white-space:nowrap">メンバー</th>
+    ${projects.map(k=>`<th style="padding:5px 8px;text-align:center;font-size:10px">${k}</th>`).join('')}
+    <th style="padding:5px 8px;text-align:center;background:#1A3070">割当合計H</th>
+    <th style="padding:5px 8px;text-align:center;background:#1A3070" title="ガントから自動取得、または直接入力">稼働可能H✎</th>
+    <th style="padding:5px 8px;text-align:center;background:#1A3070">残余H</th>
+  </tr>`;
+
+  /* 各メンバー行 */
+  const memberTotals={}; projects.forEach(k=>memberTotals[k]=0);
+  let totalAvail=0, grandAlloc=0;
+
+  body.innerHTML=MEMBERS.map(name=>{
+    const alloc=S.memberAlloc[name]||{};
+    const avail=S.memberCapacity[name]||0;
+    const allocated=projects.reduce((s,k)=>s+(alloc[k]||0),0);
+    const remaining=avail-allocated;
+    projects.forEach(k=>memberTotals[k]+=(alloc[k]||0));
+    totalAvail+=avail; grandAlloc+=allocated;
+    const remColor=avail===0?'var(--muted)':remaining<0?'#C0392B':remaining===0?'var(--navy)':'#1E7D4A';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:5px 8px;font-weight:600;color:var(--navy);white-space:nowrap">${name}</td>
+      ${projects.map(k=>`<td style="padding:3px 6px;text-align:center">
+        <input type="number" min="0" value="${alloc[k]||0}"
+          style="width:52px;text-align:right;border:1px solid var(--border);border-radius:3px;padding:2px 4px;font-size:11px"
+          onchange="if(!S.memberAlloc['${name}'])S.memberAlloc['${name}']={};S.memberAlloc['${name}']['${k}']=parseInt(this.value)||0;refreshProjHours();saveLS()">
+      </td>`).join('')}
+      <td style="padding:5px 8px;text-align:right;font-weight:700;background:#EEF2FA">${allocated}H</td>
+      <td style="padding:3px 6px;text-align:center;background:#EEF2FA">
+        <input type="number" min="0" value="${avail||''}" placeholder="0"
+          style="width:52px;text-align:right;border:1px solid var(--border);border-radius:3px;padding:2px 4px;font-size:11px;background:#fff"
+          title="ガント自動取得 or 直接入力"
+          onchange="if(!S.memberCapacity)S.memberCapacity={};S.memberCapacity['${name}']=parseInt(this.value)||0;refreshProjHours();saveLS()">
+      </td>
+      <td style="padding:5px 8px;text-align:right;font-weight:700;color:${remColor};background:#EEF2FA">
+        ${avail>0?(remaining>=0?'+':'')+remaining+'H':'—'}
+      </td>
+    </tr>`;
+  }).join('');
+
+  /* 合計行 */
+  const totalRemaining=totalAvail-grandAlloc;
+  foot.innerHTML=`<tr style="background:var(--navy-pale);font-weight:700;border-top:2px solid var(--navy)">
+    <td style="padding:5px 8px">チーム合計</td>
+    ${projects.map(k=>`<td style="padding:5px 8px;text-align:right;font-size:10px;color:var(--navy)">${memberTotals[k]}H</td>`).join('')}
+    <td style="padding:5px 8px;text-align:right;color:var(--orange)">${grandAlloc}H</td>
+    <td style="padding:5px 8px;text-align:right">${totalAvail}H</td>
+    <td style="padding:5px 8px;text-align:right;color:${totalRemaining<0?'#C0392B':'#1E7D4A'}">
+      ${totalAvail>0?(totalRemaining>=0?'+':'')+totalRemaining+'H':'—'}
+    </td>
+  </tr>`;
+}
+
 function refreshProjHours() {
   const kadou4=getKadou4(); const cap=kadou4?.totalH||0;
-  const proj=getProjInputs(); const totalProj=Object.values(proj).reduce((s,v)=>s+v,0);
-  const surplus=cap-totalProj; const rate=cap>0?(totalProj/cap*100).toFixed(1):'0.0';
-  document.getElementById('ps-proj').textContent=totalProj+'H';
-  document.getElementById('ps-cap').textContent=cap+'H';
-  const sur=document.getElementById('ps-surplus');
-  sur.textContent=(surplus>=0?'+':'')+surplus+'H'; sur.style.color=surplus>=0?'#1E7D4A':'#C0392B';
-  document.getElementById('ps-rate').textContent=`案件充足率 ${rate}%（= ${totalProj}H ÷ ${cap}H）`;
-  document.getElementById('ps-status').innerHTML=surplus<0?`<span style="color:#C0392B">⚠ キャパシティ不足 ${Math.abs(surplus)}H</span>`:`<span style="color:#1E7D4A">◎ キャパシティに不足なし</span><br><span style="color:var(--muted)">余剰 ${surplus}H は営業・社内管理・バッファとして活用可</span>`;
-  if (charts.proj) { charts.proj.destroy(); charts.proj=null; }
-  const surplusH=Math.max(0,surplus);
+  /* getProjInputs は proj-inp class を使うが、今は kosuu-proj-body の hidden input から取得 */
+  const proj=getProjInputs();
+
+  /* --- 案件テーブル描画 --- */
+  const tbody=document.getElementById('kosuu-proj-body');
+  if (tbody) {
+    if (!S.kosuuEst) S.kosuuEst={};
+    tbody.innerHTML=PROJ_CONFIG.map(({key,color})=>{
+      const fixedVal=proj[key]||0;
+      const estVal=S.kosuuEst[key]||0;
+      const tot=fixedVal+estVal;
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:5px 8px;color:${color};font-weight:600">${key}</td>
+        <td style="padding:3px 6px;text-align:center">
+          <input class="proj-inp" data-proj="${key}" type="number" min="0" value="${fixedVal}"
+            style="width:60px;text-align:right;border:1px solid var(--border);border-radius:3px;padding:2px 4px;font-size:11px"
+            onchange="refreshProjHours();saveLS()">
+        </td>
+        <td style="padding:3px 6px;text-align:center">
+          <input class="proj-est-inp" data-proj="${key}" type="number" min="0" value="${estVal}"
+            style="width:60px;text-align:right;border:1px solid var(--border);border-radius:3px;padding:2px 4px;font-size:11px"
+            onchange="S.kosuuEst['${key}']=parseInt(this.value)||0;refreshProjHours();saveLS()">
+        </td>
+        <td style="padding:5px 8px;text-align:right;font-weight:600;color:var(--navy)">${tot}H</td>
+      </tr>`;
+    }).join('');
+    /* 合計行 */
+    const fixedTot=PROJ_CONFIG.reduce((s,{key})=>s+(proj[key]||0),0);
+    const estTot=PROJ_CONFIG.reduce((s,{key})=>s+(S.kosuuEst[key]||0),0);
+    const el=id=>document.getElementById(id);
+    if(el('kosuu-fixed-tot')) el('kosuu-fixed-tot').textContent=fixedTot+'H';
+    if(el('kosuu-est-tot')) el('kosuu-est-tot').textContent=estTot+'H';
+    if(el('kosuu-total-tot')) el('kosuu-total-tot').textContent=(fixedTot+estTot)+'H';
+  }
+
+  /* --- KPI --- */
+  const totalFixed=PROJ_CONFIG.reduce((s,{key})=>s+(proj[key]||0),0);
+  const totalEst=PROJ_CONFIG.reduce((s,{key})=>s+(S.kosuuEst?.[key]||0),0);
+  const surplus=cap-totalFixed-totalEst;
+  const rate=cap>0?((totalFixed+totalEst)/cap*100).toFixed(1):'0.0';
+  const el=id=>document.getElementById(id);
+  if(el('ps-proj')) el('ps-proj').textContent=totalFixed+'H';
+  if(el('ps-est')) el('ps-est').textContent=totalEst+'H';
+  if(el('ps-cap')) el('ps-cap').textContent=cap+'H';
+  if(el('ps-surplus')){const s=el('ps-surplus');s.textContent=(surplus>=0?'+':'')+surplus+'H';s.style.color=surplus>=0?'#1E7D4A':'#C0392B';}
+  if(el('ps-rate')) el('ps-rate').textContent=`充足率 ${rate}%（固定${totalFixed}H + 想定${totalEst}H ÷ ${cap}H）`;
+  if(el('ps-status')) el('ps-status').innerHTML=surplus<0?`<span style="color:#C0392B">⚠ キャパシティ不足 ${Math.abs(surplus)}H</span>`:`<span style="color:#1E7D4A">◎ 余剰 ${surplus}H</span>`;
+
+  /* --- チャート（固定・想定・稼働可能内訳 3本）--- */
+  if(charts.proj){charts.proj.destroy();charts.proj=null;}
+  /* メンバー割当の会社別合計を計算 */
+  const allocByProj={};
+  PROJ_CONFIG.forEach(({key})=>{
+    allocByProj[key]=MEMBERS.reduce((s,name)=>s+(S.memberAlloc?.[name]?.[key]||0),0);
+  });
+  const totalAlloc=PROJ_CONFIG.reduce((s,{key})=>s+allocByProj[key],0);
+  const totalCap=MEMBERS.reduce((s,name)=>s+(S.memberCapacity?.[name]||0),0);
+  const surplusH=Math.max(0,totalCap-totalAlloc);
   charts.proj=new Chart(document.getElementById('projChart'),{
     type:'bar',
-    data:{ labels:['案件工数合計（必要）','稼働可能（内訳）'],
-      datasets:[...PROJ_CONFIG.map(({key,color})=>({label:`${key}（${proj[key]||0}H）`,data:[proj[key]||0,proj[key]||0],backgroundColor:color,borderWidth:0})),
-        {label:`余剰キャパシティ（${surplusH}H）`,data:[0,surplusH],backgroundColor:'#CDD2E8',borderWidth:0}]},
-    options:{ indexAxis:'y',responsive:true,maintainAspectRatio:true, plugins:{legend:{labels:{boxWidth:12,padding:10}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw+'H'}}}, scales:{x:{stacked:true,grid:{color:'#E8EBF4'},ticks:{callback:v=>v+'H'}},y:{stacked:true,grid:{display:false}}} }
+    data:{
+      labels:['固定工数合計','想定工数合計','稼働可能（メンバー割当内訳）'],
+      datasets:[
+        ...PROJ_CONFIG.map(({key,color})=>({
+          label:key,
+          data:[proj[key]||0, S.kosuuEst?.[key]||0, allocByProj[key]||0],
+          backgroundColor:color,borderWidth:0
+        })),
+        {label:`余剰（${surplusH}H）`,data:[0,0,surplusH],backgroundColor:'#CDD2E8',borderWidth:0}
+      ]
+    },
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:true,
+      plugins:{legend:{labels:{boxWidth:12,padding:8}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw+'H'}}},
+      scales:{x:{stacked:true,grid:{color:'#E8EBF4'},ticks:{callback:v=>v+'H'}},y:{stacked:true,grid:{display:false}}}}
   });
+
+  /* --- メンバー別工数割当テーブル --- */
+  renderMemberAlloc(proj, cap, kadou4);
+
   S.projHours=proj; saveLS();
 }
 
@@ -1206,6 +1556,45 @@ function init() {
   document.addEventListener('dragover', e=>e.preventDefault());
   document.addEventListener('drop', e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(f?.name.endsWith('.xlsx')||f?.name.endsWith('.xls')) handleFile(f); });
   document.querySelectorAll('.proj-inp').forEach(el=>el.addEventListener('change', refreshProjHours));
+  /* ★ パイプライン操作: document.body への委譲イベント（DOM再構築後も確実に動作）*/
+  document.addEventListener('click', function(e) {
+    const delBtn = e.target.closest('.pipe-del-btn');
+    if (delBtn) {
+      const key = delBtn.getAttribute('data-key');
+      const name = delBtn.getAttribute('data-name') || key;
+      if (!key) return;
+      /* confirmの代わりにインライン確認ボタンを表示 */
+      if (delBtn.dataset.confirming === 'yes') {
+        /* 2回目クリック → 削除実行 */
+        if (!Array.isArray(S.pipeCompanies)) S.pipeCompanies = PIPE_CLIENTS.map(c=>({...c}));
+        S.pipeCompanies = S.pipeCompanies.filter(c => c.key !== key);
+        delete S.pipeData[key];
+        saveLS();
+        renderPipeSummary();
+        onPipeChange();
+      } else {
+        /* 1回目クリック → 確認状態に */
+        delBtn.dataset.confirming = 'yes';
+        delBtn.textContent = '本当に削除？';
+        delBtn.style.background = '#DC2626';
+        delBtn.style.color = '#fff';
+        delBtn.style.borderColor = '#DC2626';
+        setTimeout(() => {
+          if (delBtn.isConnected) {
+            delBtn.dataset.confirming = '';
+            delBtn.textContent = '削除';
+            delBtn.style.background = '#FEF2F2';
+            delBtn.style.color = '#DC2626';
+            delBtn.style.borderColor = '#FECACA';
+          }
+        }, 3000); /* 3秒後に元に戻す */
+      }
+      return;
+    }
+    const addBtn = e.target.closest('#pipe-add-btn');
+    if (addBtn) { addPipeCompany(); }
+  });
+
   const hasData=loadLS();
   if (hasData&&(S.pl||S.yojitsu)) {
     showDash();
@@ -1249,8 +1638,12 @@ function updateGanttNav() {
   const badge=document.getElementById('gantt-month-badge'); if(badge){ const lbl=getKadouMonthLabel(m); badge.textContent=lbl?`［${lbl}］`:''; }
 }
 function switchPage(page) {
-  ['keiei','pl'].forEach(p=>{ document.getElementById('page-'+p).style.display=p===page?'':'none'; document.getElementById('tab-'+p).classList.toggle('active',p===page); });
+  ['keiei','pl','kosuu'].forEach(p=>{
+    document.getElementById('page-'+p).style.display=p===page?'':'none';
+    document.getElementById('tab-'+p).classList.toggle('active',p===page);
+  });
   if (page==='pl') { renderPLIfNeeded(); }
+  if (page==='kosuu') { renderGantt(); refreshProjHours(); }
 }
 
 /* ═════════════════════════════════════════════════════════
@@ -1317,6 +1710,36 @@ function renderPLIfNeeded() { }
 /* ═════════════════════════════════════════════════════════
    ★ FIX: 最終締め月 手動設定関数
 ═════════════════════════════════════════════════════════ */
+function setPlViewMode(mode) {
+  S.plViewMode = mode;
+  const btnM=document.getElementById('pl-view-monthly'),btnC=document.getElementById('pl-view-cumul');
+  if (btnM&&btnC) {
+    if (mode==='monthly') {
+      btnM.style.cssText='font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-weight:700;cursor:pointer;font-family:inherit';
+      btnC.style.cssText='font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:var(--white);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit';
+    } else {
+      btnC.style.cssText='font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--orange);background:var(--orange);color:var(--navy);font-weight:700;cursor:pointer;font-family:inherit';
+      btnM.style.cssText='font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:var(--white);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit';
+    }
+  }
+  saveLS(); renderPL1();
+}
+
+function setPlCompareMode(mode) {
+  S.plCompareMode = mode;
+  const btnP=document.getElementById('pl-cmp-prevmonth'),btnY=document.getElementById('pl-cmp-prevyear');
+  if (btnP&&btnY) {
+    if (mode==='prevMonth') {
+      btnP.style.cssText='font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-weight:700;cursor:pointer;font-family:inherit';
+      btnY.style.cssText='font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:var(--white);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit';
+    } else {
+      btnY.style.cssText='font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--orange);background:var(--orange);color:var(--navy);font-weight:700;cursor:pointer;font-family:inherit';
+      btnP.style.cssText='font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:var(--white);color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit';
+    }
+  }
+  saveLS(); renderPL1();
+}
+
 function setLastClosedMonth(val) {
   /* val: '' = 自動判定, '1'-'12' = 手動設定月（1月=1, 4月=4） */
   S.lastClosedMonth = val === '' ? null : parseInt(val, 10);
@@ -1463,6 +1886,8 @@ function renderPLDetail() {
   /* ★ 最終締め月セレクターの値を復元 */
   const sel=document.getElementById('pl-last-closed');
   if (sel) sel.value=S.lastClosedMonth||'';
+  if (S.plViewMode) setPlViewMode(S.plViewMode);
+  if (S.plCompareMode) setPlCompareMode(S.plCompareMode);
   updateMonthButtonActive(); updatePLBadge();
   renderPLKPIBoxes(); renderPL1(); renderPL2(); renderPL3();
 }
@@ -1512,22 +1937,26 @@ function renderPL1() {
   const prevIdxList=getPrevIdxList(idxList);
   const prevLabel=S.plSelPeriod?`前${S.plSelPeriod}`:(prevIdxList?`前月(${MONTH_NAMES[prevIdxList[0]]})`:' 前月');
 
-  /* 累計ラベル・当月ラベル */
-  const cumulLabel = S.plSelPeriod
-    ? `${S.plSelPeriod}累計`
-    : `累計（1〜${S.plSelMonth||1}月）`;
-  const monthLabel = S.plSelPeriod
-    ? S.plSelPeriod
-    : `${S.plSelMonth||1}月`;
-  /* 当月（単月）の値を計算するヘルパー */
-  const singleIdx = idxList[idxList.length-1]; // 選択月の0-based index
+  const singleIdx = idxList[idxList.length-1];
+  const isCumul = S.plViewMode === 'cumulative';
+  const isPrevYear = S.plCompareMode === 'prevYear';
+  const compareLabel = isPrevYear ? '前年' : '前月';
+  const selLabel = S.plSelPeriod || `${S.plSelMonth||1}月`;
+  const cumulLabel = S.plSelPeriod ? `${S.plSelPeriod}累計` : `累計（1〜${S.plSelMonth||1}月）`;
   let html=`<table class="pl1-tbl"><thead><tr>
     <th style="width:140px">科目</th>
-    <th style="background:#2d4090;border-left:2px solid rgba(255,255,255,.3)">${monthLabel}</th>
-    <th style="background:#243580;border-left:1px solid rgba(255,255,255,.2)">${cumulLabel}${actualBadge}</th>
-    <th>予算</th>
-    <th title="累計－予算">予算差</th><th style="width:58px">予算比</th>
-    <th>前月差</th><th style="width:58px">前月比</th>
+    ${isCumul
+      ? `<th style="background:#243580;border-left:2px solid rgba(255,255,255,.3)">${cumulLabel}${actualBadge}</th>
+         <th>累計予算</th>
+         <th>累計予算差</th>
+         <th style="width:58px">累計予算比</th>`
+      : `<th style="background:#2d4090;border-left:2px solid rgba(255,255,255,.3)">${selLabel}${actualBadge}</th>
+         <th>予算</th>
+         <th>予算差</th>
+         <th style="width:58px">予算比</th>
+         <th>${compareLabel}差</th>
+         <th style="width:58px">${compareLabel}比</th>`
+    }
   </tr></thead><tbody>`;
 
   const PIPE_COST_RATE=0.5;
@@ -1556,7 +1985,11 @@ function renderPL1() {
     let yojitsuRate='0.0%'; if(bud!==0) yojitsuRate=(single/Math.abs(bud)*100).toFixed(1)+'%';
     const prevDiff=prevSingle!==null?single-prevSingle:null;
     let prevRate='-'; if(prevSingle!==null&&prevSingle!==0) prevRate=(single/Math.abs(prevSingle)*100).toFixed(1)+'%';
-    return {act,single,bud,yojitsuDiff,yojitsuRate,prevDiff,prevRate};
+    /* 累計予算・差異 */
+    const budCumul=budArr?sumAcross(budArr,idxList):0;
+    const yojitsuDiffCumul=budCumul!==0?act-budCumul:null;
+    let yojitsuRateCumul='0.0%'; if(budCumul!==0) yojitsuRateCumul=(act/Math.abs(budCumul)*100).toFixed(1)+'%';
+    return {act,single,bud,budCumul,yojitsuDiff,yojitsuRate,yojitsuDiffCumul,yojitsuRateCumul,prevDiff,prevRate};
   }
 
   const numClass=(v,invert)=>{ if(!v||v===0) return ''; const pos=invert?v<0:v>0; return pos?'pos':'neg'; };
@@ -1571,31 +2004,34 @@ function renderPL1() {
       const diff=actRate-budRate, rateCol=actRate>=0?'var(--green)':'var(--red)';
       html+=`<tr style="background:#F9FAFD">
         <td style="padding-left:16px;color:var(--muted);font-size:10px">${row.label}</td>
-        <td style="border-left:2px solid var(--border)"></td>
-        <td class="num" style="font-weight:600;font-size:10px;color:${rateCol};border-left:1px solid var(--border)">${actRate.toFixed(1)}%</td>
-        <td class="num" style="color:var(--muted);font-size:10px">${budRate?budRate.toFixed(1)+'%':'-'}</td>
-        <td class="num" style="font-size:10px;color:${diff>=0?'var(--green)':'var(--red)'}">${budRate?diff.toFixed(1)+'pt':'-'}</td>
-        <td colspan="3" style="color:var(--muted);font-size:10px"></td>
+        <td class="num" style="font-weight:600;font-size:10px;color:${rateCol};border-left:2px solid var(--border)">${actRate.toFixed(1)}%</td>
+        <td colspan="${isCumul?3:5}" style="color:var(--muted);font-size:10px"></td>
       </tr>`;
       return;
     }
     const isExpense=['外注費','交際費','会議費','旅費交通費','__other','販売管理費 計'].includes(row.key);
     const isOther=row.key==='__other';
-    const {act,single,bud,yojitsuDiff,yojitsuRate,prevDiff,prevRate}=calcRow(row.key,isOther);
+    const {act,single,bud,budCumul,yojitsuDiff,yojitsuRate,yojitsuDiffCumul,yojitsuRateCumul,prevDiff,prevRate}=calcRow(row.key,isOther);
     const yjDiffClass=isExpense?numClass(yojitsuDiff,true):numClass(yojitsuDiff,false);
     const pvDiffClass=isExpense?numClass(prevDiff,true):numClass(prevDiff,false);
     const rowClass=row.isSummary?'summary-row':(row.level===1?'sub-row':'');
     const drillKey=isOther?null:row.key;
     const drillBtn=(drillKey&&S.glData)?`<button class="pl1-drillbtn" onclick="openDrill('${drillKey}',${S.plSelMonth})">元帳</button>`:'';
+    const yjDiffClassCumul=isExpense?numClass(yojitsuDiffCumul,true):numClass(yojitsuDiffCumul,false);
     html+=`<tr class="${rowClass}">
       <td>${row.label} ${drillBtn}</td>
-      <td class="num ${single<0?'neg':''}" style="border-left:2px solid var(--border);color:var(--muted);font-size:10px">${FC(single)}</td>
-      <td class="num ${act<0?'neg':''}" style="border-left:1px solid var(--border);font-weight:${row.isSummary?700:400}">${FC(act)}</td>
-      <td class="num">${FC(bud)}</td>
-      <td class="num ${yjDiffClass}">${FCD(yojitsuDiff)}</td>
-      <td class="num">${yojitsuRate}</td>
-      <td class="num ${pvDiffClass}">${prevDiff!==null?FC(prevDiff):'-'}</td>
-      <td class="num">${prevRate}</td>
+      ${isCumul
+        ? `<td class="num ${act<0?'neg':''}" style="border-left:2px solid var(--border);font-weight:${row.isSummary?700:400}">${FC(act)}</td>
+           <td class="num">${FC(budCumul)}</td>
+           <td class="num ${yjDiffClassCumul}">${FCD(yojitsuDiffCumul)}</td>
+           <td class="num">${yojitsuRateCumul}</td>`
+        : `<td class="num ${single<0?'neg':''}" style="border-left:2px solid var(--border);font-weight:${row.isSummary?700:400}">${FC(single)}</td>
+           <td class="num">${FC(bud)}</td>
+           <td class="num ${yjDiffClass}">${FCD(yojitsuDiff)}</td>
+           <td class="num">${yojitsuRate}</td>
+           <td class="num ${pvDiffClass}">${isPrevYear?'-':prevDiff!==null?FC(prevDiff):'-'}</td>
+           <td class="num">${isPrevYear?'-':prevRate}</td>`
+      }
     </tr>`;
     if (row.isOtherHead&&S.pl3Expand) {
       yojitsu.otherDetailRows.forEach(dr=>{
@@ -1607,16 +2043,23 @@ function renderPL1() {
         const dPvDiff=dPrevAct!==null?da-dPrevAct:null,dPvRate=(dPrevAct!==null&&dPrevAct!==0)?(da/Math.abs(dPrevAct)*100).toFixed(1)+'%':'-';
         const dBtn=S.glData?`<button class="pl1-drillbtn" onclick="openDrill('${dr.label}',${S.plSelMonth})">元帳</button>`:'';
         const dActVal=idxList.reduce((s,i)=>s+(isMonthClosedGlobal(i)?(dr.actual[i]||0):((dr.fc||dr.budget)[i]||0)),0);
-        const dSingle=isMonthClosedGlobal(singleIdx)?(dr.actual[singleIdx]||0):((dr.fc||dr.budget)[singleIdx]||0);
+        const dBudCumul=sumAcross(dr.budget,idxList);
+        const dYjDiffCumul=dBudCumul!==0?dActVal-dBudCumul:null;
+        const dYjRateCumul=dBudCumul!==0?(dActVal/Math.abs(dBudCumul)*100).toFixed(1)+'%':'0.0%';
         html+=`<tr class="other-sub-row">
           <td>${dr.label} ${dBtn}</td>
-          <td class="num" style="border-left:2px solid var(--border);color:var(--muted);font-size:10px">${FC(dSingle)}</td>
-          <td class="num" style="border-left:1px solid var(--border)">${FC(dActVal)}</td>
-          <td class="num">${FC(db)}</td>
-          <td class="num ${numClass(dYjDiff,true)}">${FCD(dYjDiff)}</td>
-          <td class="num">${dYjRate}</td>
-          <td class="num ${numClass(dPvDiff,true)}">${FCD(dPvDiff)}</td>
-          <td class="num">${dPvRate}</td>
+          ${isCumul
+            ? `<td class="num" style="border-left:2px solid var(--border)">${FC(dActVal)}</td>
+               <td class="num">${FC(dBudCumul)}</td>
+               <td class="num ${numClass(dYjDiffCumul,true)}">${FCD(dYjDiffCumul)}</td>
+               <td class="num">${dYjRateCumul}</td>`
+            : `<td class="num" style="border-left:2px solid var(--border)">${FC(dSingle)}</td>
+               <td class="num">${FC(db)}</td>
+               <td class="num ${numClass(dYjDiff,true)}">${FCD(dYjDiff)}</td>
+               <td class="num">${dYjRate}</td>
+               <td class="num ${numClass(dPvDiff,true)}">${isPrevYear?'-':FCD(dPvDiff)}</td>
+               <td class="num">${isPrevYear?'-':dPvRate}</td>`
+          }
         </tr>`;
       });
     }
