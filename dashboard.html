@@ -858,6 +858,8 @@ let S = {
   plCompareMode:'prevMonth', /* 'prevMonth'=前月比 / 'prevYear'=前年比 */
   lastClosedMonth: null,
   pipeData: {},
+  plCompanyRevenue: {},
+  plRawRows: null, /* PLシート生データ（renderPipeSummaryで直接参照）*/
   kosuuEst: {},    /* 案件別想定工数 {key:hours} */
   memberAlloc: {}, /* メンバー別割当 {name:{key:hours}} */
   memberCapacity: {}, /* メンバー別稼働可能H（手動設定） */
@@ -1035,6 +1037,27 @@ function processFile(buf) {
       return found ? wb.Sheets[found] : undefined;
     };
     S.pl       = safeparse(parsePL, wb.Sheets['PL']);
+    /* PLシート生データを保存 → renderPipeSummaryで直接参照 */
+    if (wb.Sheets['PL']) {
+      const plRows = XLSX.utils.sheet_to_json(wb.Sheets['PL'], {header:1, raw:true, defval:null});
+      S.plRawRows = plRows;
+      S.plCompanyRevenue = {};
+      /* ラベルをcol0〜col2で柔軟に検索し、次列から12ヶ月分取得 */
+      PIPE_CLIENTS.forEach(({key}) => {
+        for (const r of plRows) {
+          if (!r) continue;
+          for (let ci = 0; ci <= 2; ci++) {
+            if (r[ci] && typeof r[ci]==='string' && r[ci].includes(key)) {
+              S.plCompanyRevenue[key] = Array.from({length:12}, (_,i) => {
+                const v = r[ci+1+i]; return typeof v==='number' ? Math.round(v) : 0;
+              });
+              break;
+            }
+          }
+          if (S.plCompanyRevenue[key]) break;
+        }
+      });
+    }
     S.pipeline = safeparse(parsePipeline, wb.Sheets['パイプライン']);
     S.kadouData = {
       current: safeparse(parseKadou, findSheet('稼働管理','今月_稼働管理','稼働')),
@@ -1046,9 +1069,9 @@ function processFile(buf) {
     if (wb.Sheets['実績'] || wb.Sheets['予算']) {
       try { S.yojitsu = parseYojitsuSplit(wb.Sheets['実績'], wb.Sheets['予算']); }
       catch(e) { S.yojitsu = null; console.error('parseYojitsuSplit error:', e); }
-    } else {
-      S.yojitsu = safeparse(parseYojitsu, wb.Sheets['予実管理']);
     }
+    /* parsePLSheet は廃止 → S.pl.clientRevenue から直接反映 */
+
     S.bsData  = safeparse(parseBS, wb.Sheets['BS推移']);
     S.glData  = safeparse(parseGL, wb.Sheets['総勘定元帳']);
     S.plSelMonth = null;
@@ -1151,7 +1174,7 @@ function getPipeTotal() {
   let t=0;
   getPipeCompanies().forEach(c => {
     const d=S.pipeData[c.key]; if(!d) return;
-    const fixedArr=d.fixedMonths||Array(12).fill(d.fixed||0);
+    const fixedArr=(S.plCompanyRevenue&&S.plCompanyRevenue[c.key])||d.fixedMonths||Array(12).fill(d.fixed||0);
     t += fixedArr.reduce((s,v)=>s+(v||0),0) + (d.variable||[]).reduce((s,v)=>s+(v||0),0);
   });
   return t;
@@ -1160,7 +1183,7 @@ function getPipeMonthlyTotal() {
   const arr=Array(12).fill(0);
   getPipeCompanies().forEach(c => {
     const d=S.pipeData[c.key]; if(!d) return;
-    const fixedArr=d.fixedMonths||Array(12).fill(d.fixed||0);
+    const fixedArr=(S.plCompanyRevenue&&S.plCompanyRevenue[c.key])||d.fixedMonths||Array(12).fill(d.fixed||0);
     (d.variable||[]).forEach((v,i)=>{ arr[i]+=fixedArr[i]+(v||0); });
   });
   return arr;
@@ -1211,10 +1234,13 @@ function togglePipeDetail() {
   const open = panel.style.display === 'none';
   panel.style.display = open ? 'block' : 'none';
   if (btn) btn.textContent = open ? '月別詳細 ▲' : '月別詳細 ▼';
+  /* パネルを開いたとき→最新データで再描画（PLシート反映のため必須）*/
+  if (open) renderPipeSummary();
   requestAnimationFrame(() => { if (charts.rev) charts.rev.resize(); });
 }
 
 function renderPipeSummary() {
+  /* デバッグ: PLデータの状態確認 */
   initPipeData();
   const companies = getPipeCompanies();
   const list = document.getElementById('pipe-summary-list');
@@ -1248,25 +1274,42 @@ function renderPipeSummary() {
   if (!tbl) return;
   const mnths = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
-  let html = `<tr>
+  let html = '';
+
+  /* ① 月別合計行を一番上に */
+  const mTotTop = getPipeMonthlyTotal();
+  const grandTotal = getPipeTotal();
+  html+=`<tr style="background:var(--navy);color:#fff;font-weight:700">
     <th style="min-width:100px">案件</th>
     <th style="min-width:50px">種別</th>
-    ${mnths.map(m=>`<th style="min-width:60px">${m}</th>`).join('')}
+    ${mnths.map((m,mi)=>`<th style="min-width:60px">${m}</th>`).join('')}
     <th style="min-width:70px">合計</th>
+  </tr>
+  <tr style="background:#243580;color:#fff;font-weight:700;border-bottom:3px solid var(--navy)">
+    <td colspan="2" style="color:#fff">月別合計</td>
+    ${mTotTop.map(v=>`<td style="text-align:right;font-size:10px">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
+    <td style="text-align:right;color:var(--orange)">${F(grandTotal)}</td>
   </tr>`;
 
+  /* ② 各社 固定行/変動行/小計行 */
   companies.forEach((c, ci) => {
     const d = S.pipeData[c.key]||{fixed:0,variable:Array(12).fill(0)};
-    const fixed = d.fixed||0;
     const varArr = d.variable||Array(12).fill(0);
-    const fixedArr2=d.fixedMonths||Array(12).fill(fixed); const fixedTotal=fixedArr2.reduce((s,v)=>s+(v||0),0);
+    /* fixedArr: PLシート月別売上（締め月以降のみ表示）*/
+    const rawFixedArr = (S.plCompanyRevenue&&S.plCompanyRevenue[c.key])||d.fixedMonths||Array(12).fill(d.fixed||0);
+    const lastClosed = S.lastClosedMonth || 0; /* 0=自動 or 1-12 */
+    const autoThreshold = new Date().getMonth(); /* 0-based: nowMonthIdx-1 */
+    const closedIdx = lastClosed > 0 ? lastClosed : autoThreshold;
+    /* 締め月以前は固定を非表示（-）、以降は値を表示 */
+    const fixedArr = rawFixedArr.map((v,i) => i < closedIdx ? 0 : v);
+    const fixedTotal = fixedArr.reduce((s,v)=>s+(v||0),0);
     const varTotal = varArr.reduce((s,v)=>s+(v||0),0);
-    const subtotalArr = varArr.map(v => fixed+(v||0));
-    const subtotalTotal = fixedTotal+varTotal;
+    /* ③ 小計 = 固定 + 変動（月別）*/
+    const subtotalArr = fixedArr.map((fv,i) => (fv||0)+(varArr[i]||0));
+    const subtotalTotal = fixedTotal + varTotal;
     const rowBg = ci%2===0 ? '' : 'background:#FAFBFD';
 
-    /* 固定行（全月個別入力）*/
-    const fixedArr=d.fixedMonths||Array(12).fill(fixed); /* 月別固定費配列（なければ全月同額）*/
+    /* 固定行 */
     html+=`<tr style="${rowBg}">
       <td rowspan="3" style="color:${c.color};font-weight:700;font-size:11px;border-right:2px solid var(--border);vertical-align:middle;text-align:center">
         <div>${c.name.length>10?c.name.slice(0,10)+'…':c.name}</div>
@@ -1274,19 +1317,16 @@ function renderPipeSummary() {
           style="margin-top:4px;font-size:9px;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;border-radius:3px;cursor:pointer;padding:1px 6px;font-family:inherit;display:block;width:100%">削除</button>
       </td>
       <td style="font-size:10px;color:var(--muted);white-space:nowrap">固定</td>
-      ${fixedArr.map((fv,mi)=>`<td>
-        <input class="pm-inp" data-key="${c.key}" data-mi="${mi}" data-type="fixedMonths"
-          value="${fv>0?fv.toLocaleString('ja-JP'):''}" placeholder="0"
-          onchange="onPmInpChange(this)" onfocus="this.value=this.value.replace(/,/g,'')" onblur="fmtPmInp(this)"
-          style="width:56px">
+      ${rawFixedArr.map((fv,mi)=>`<td style="padding:3px 4px;text-align:right;font-size:10px;color:${mi<closedIdx?'#ccc':'var(--navy)'}">
+        ${mi<closedIdx?'-':(fv>0?fv.toLocaleString('ja-JP'):'-')}
       </td>`).join('')}
-      <td style="font-size:10px;font-weight:600;text-align:right">${fixedArr.reduce((s,v)=>s+(v||0),0)>0?F(fixedArr.reduce((s,v)=>s+(v||0),0)):'-'}</td>
+      <td style="font-size:10px;font-weight:600;text-align:right">${fixedTotal>0?fixedTotal.toLocaleString('ja-JP'):'-'}</td>
     </tr>`;
 
     /* 変動行 */
     html+=`<tr style="${rowBg}">
       <td style="font-size:10px;color:var(--muted);white-space:nowrap">変動</td>
-      ${varArr.map((v,mi)=>`<td>
+      ${varArr.map((v,mi)=>`<td style="padding:3px 4px">
         <input class="pm-inp" data-key="${c.key}" data-mi="${mi}" data-type="variable"
           value="${v>0?v.toLocaleString('ja-JP'):''}" placeholder="0"
           onchange="onPmInpChange(this)" onfocus="this.value=this.value.replace(/,/g,'')" onblur="fmtPmInp(this)"
@@ -1295,25 +1335,18 @@ function renderPipeSummary() {
       <td style="font-size:10px;font-weight:600;text-align:right">${varTotal>0?F(varTotal):'-'}</td>
     </tr>`;
 
-    /* 小計行 */
+    /* 小計行（固定+変動）*/
     html+=`<tr style="border-bottom:2px solid var(--border);${rowBg}">
       <td style="font-size:10px;font-weight:700;color:var(--navy);white-space:nowrap">小計</td>
-      ${subtotalArr.map(v=>`<td style="font-size:10px;font-weight:600;text-align:right;color:var(--navy);background:#EEF2FA">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
+      ${subtotalArr.map(v=>`<td style="font-size:10px;font-weight:600;text-align:right;background:#EEF2FA;color:var(--navy)">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
       <td style="font-size:11px;font-weight:700;text-align:right;color:var(--orange)">${subtotalTotal>0?F(subtotalTotal):'-'}</td>
     </tr>`;
   });
 
-  /* 月別合計行 */
-  const mTot = getPipeMonthlyTotal();
-  const grandTotal = getPipeTotal();
-  html+=`<tr style="background:var(--navy-pale);font-weight:700;border-top:2px solid var(--navy)">
-    <td colspan="2" style="color:var(--navy)">月別合計</td>
-    ${mTot.map(v=>`<td style="text-align:right;font-size:10px;color:var(--navy)">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
-    <td style="text-align:right;color:var(--orange)">${F(grandTotal)}</td>
-  </tr>`;
-
   tbl.className = 'pmtbl';
   tbl.innerHTML = html;
+
+  /* 固定行はinputではなくテキスト表示のためDOM直接セット不要 */
 
   const el = document.getElementById('pipeTot');
   if (el) el.textContent = F(getPipeTotal());
@@ -1839,8 +1872,7 @@ function isMonthClosedGlobal(idx) {
 /* ═════════════════════════════════════════════════════════
    データ取得ヘルパー
 ═════════════════════════════════════════════════════════ */
-function getActArr(key) { return S.yojitsu?.rawByKey?.[key] || Array(12).fill(0); }
-function getFCArr(key) { return S.yojitsu?.fcByKey?.[key] || S.yojitsu?.budByKey?.[key] || Array(12).fill(0); }
+
 function getPLArr(key) {
   /* 締め月以前=rawByKey(実績)、以降=fcByKey(予算シートFC) */
   const raw = S.yojitsu?.rawByKey?.[key] || Array(12).fill(0);
@@ -2232,6 +2264,9 @@ function closeDrill() { const card=document.getElementById('pl4-card'); if(card)
    予実管理パーサー（新形式: 実績シート + 予算シート）
    ★ FIX: parseYojitsuSplit に 販売管理費 計 再計算を追加
 ═════════════════════════════════════════════════════════ */
+
+
+
 function parseYojitsuSplit(actualSheet, budgetSheet) {
   if (!actualSheet && !budgetSheet) return null;
   const num = v => (typeof v === 'number' ? v : 0);
