@@ -476,6 +476,16 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
     <button type="button" class="tab-btn active" id="tab-pl"     onclick="switchPage('pl')">📊 PL詳細</button>
     <button type="button" class="tab-btn"        id="tab-keiei" onclick="switchPage('keiei')">🎯 営業・稼働管理</button>
     <button type="button" class="tab-btn"        id="tab-kosuu" onclick="switchPage('kosuu')">⏱ 工数管理</button>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;margin-right:8px;flex-shrink:0">
+      <span style="font-size:10px;color:#1A3988;font-weight:600;white-space:nowrap">📅 締め月</span>
+      <select class="closing-month-sel" onchange="setLastClosedMonth(this.value)"
+        style="font-size:11px;padding:3px 6px;border:1.5px solid #1A3988;border-radius:5px;color:#1A3988;background:#fff;font-family:inherit;cursor:pointer">
+        <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+        <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+        <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+        <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+      </select>
+    </div>
     <button onclick="doLogout()" title="ログアウト" style="
       margin-left:auto;margin-right:12px;
       display:flex;align-items:center;gap:6px;
@@ -671,8 +681,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
     <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--navy-pale);border-radius:6px;border:1px solid var(--border);flex-wrap:wrap">
       <div class="closed-month-sel" title="実績確定月を設定。それ以降は実績シートの値→予算シートFCの順で自動選択">
         <label>📅 最終締め月：</label>
-        <select id="pl-last-closed" onchange="setLastClosedMonth(this.value)">
-          <option value="">自動判定</option>
+        <select id="pl-last-closed" class="closing-month-sel" onchange="setLastClosedMonth(this.value)">
           <option value="1">1月</option>
           <option value="2">2月</option>
           <option value="3">3月</option>
@@ -1097,7 +1106,12 @@ function renderAll() {
 }
 
 function renderKPIs() {
-  const conf = S.pl ? S.pl.annualRevenue : 0;
+  /* 確定売上 = 締め月以前の実績シート売上合計 */
+  const rawRev = S.yojitsu?.rawByKey?.['売上高'] || S.yojitsu?.rawByKey?.['売上高 計'] || Array(12).fill(0);
+  const ci = getPipeClosedIdx();
+  let conf = 0;
+  for (let i=0; i<ci; i++) conf += (rawRev[i]||0);
+  /* 売上見通し合計 = 確定売上 + パイプライン（予算FCは加算しない）*/
   const pipe = getPipeTotal();
   const total = conf + pipe;
   const gap = TGT - conf, gapPipe = TGT - total;
@@ -1105,7 +1119,7 @@ function renderKPIs() {
   const set = (id, val) => { const e=document.getElementById(id); if(e) e.textContent=val; };
   const setC = (id, col) => { const e=document.getElementById(id); if(e) e.style.color=col; };
   const setW = (id, pct) => { const e=document.getElementById(id); if(e) e.style.width=pct+'%'; };
-  set('kv1', F(conf)); setW('kb1', rate);
+  set('kv1', F(conf)); setW('kb1', rate); /* 確定売上（締め月以前実績）*/
   set('kv2', (gap>0?'▲ ':'+') + F(Math.abs(gap))); setC('kv2', gap>0?'#C0392B':'#1E7D4A');
   set('kn2', gap>0?'目標未達':'目標超過'); set('kv2r', rate.toFixed(1)+'%'); setW('kb2', Math.min(100, rate));
   set('kv5', F(total)); set('kn5', pipe>0 ? `パイプライン +¥${Math.round(pipe/10000)}万含む` : 'パイプライン未入力'); setW('kb5', rateP);
@@ -1170,21 +1184,31 @@ function initPipeData() {
     if (!S.pipeData[c.key].variable) S.pipeData[c.key].variable = Array(12).fill(0);
   });
 }
+/* パイプライン用：締め月インデックス取得（これ以降の月のみ集計対象）*/
+function getPipeClosedIdx() {
+  if (S.lastClosedMonth !== null && S.lastClosedMonth !== undefined && S.lastClosedMonth > 0) {
+    return S.lastClosedMonth;
+  }
+  return 0; /* 未設定時は全月対象 */
+}
+
 function getPipeTotal() {
-  let t=0;
+  const ci=getPipeClosedIdx(); let t=0;
   getPipeCompanies().forEach(c => {
     const d=S.pipeData[c.key]; if(!d) return;
     const fixedArr=(S.plCompanyRevenue&&S.plCompanyRevenue[c.key])||d.fixedMonths||Array(12).fill(d.fixed||0);
-    t += fixedArr.reduce((s,v)=>s+(v||0),0) + (d.variable||[]).reduce((s,v)=>s+(v||0),0);
+    /* 締め月以降のみ集計 */
+    for(let i=ci;i<12;i++) t+=( fixedArr[i]||0)+(d.variable?.[i]||0);
   });
   return t;
 }
 function getPipeMonthlyTotal() {
-  const arr=Array(12).fill(0);
+  const ci=getPipeClosedIdx(); const arr=Array(12).fill(0);
   getPipeCompanies().forEach(c => {
     const d=S.pipeData[c.key]; if(!d) return;
     const fixedArr=(S.plCompanyRevenue&&S.plCompanyRevenue[c.key])||d.fixedMonths||Array(12).fill(d.fixed||0);
-    (d.variable||[]).forEach((v,i)=>{ arr[i]+=fixedArr[i]+(v||0); });
+    /* 締め月以降のみ */
+    for(let i=ci;i<12;i++) arr[i]+=(fixedArr[i]||0)+(d.variable?.[i]||0);
   });
   return arr;
 }
@@ -1249,14 +1273,15 @@ function renderPipeSummary() {
   /* サマリーリスト（イベントリスナー方式で確実に動作） */
   list.innerHTML = companies.map(c => {
     const d = S.pipeData[c.key] || {fixed:0,variable:Array(12).fill(0)};
-    const fixed = d.fixed||0;
-    const varTotal = (d.variable||[]).reduce((s,v)=>s+(v||0),0);
-    const subtotal = fixed*12 + varTotal;
+    const ci=getPipeClosedIdx();
+    const plFixed=(S.plCompanyRevenue&&S.plCompanyRevenue[c.key])||Array(12).fill(d.fixed||0);
+    /* 締め月以降のみ合計 */
+    let subtotal=0;
+    for(let i=ci;i<12;i++) subtotal+=(plFixed[i]||0)+((d.variable||[])[i]||0);
     return `<div class="pipe-sum-row" style="align-items:center">
       <span class="pipe-sum-dot" style="background:${c.color}"></span>
       <span class="pipe-sum-name">${c.name}</span>
 
-      <span style="font-size:10px;color:var(--muted);width:90px;text-align:right;flex-shrink:0">固定 ${fixed>0?F(fixed):'-'}</span>
       <span class="pipe-sum-total">${subtotal>0?F(subtotal):'¥0'}</span>
     </div>`;
   }).join('');
@@ -1287,7 +1312,7 @@ function renderPipeSummary() {
   </tr>
   <tr style="background:#243580;color:#fff;font-weight:700;border-bottom:3px solid var(--navy)">
     <td colspan="2" style="color:#fff">月別合計</td>
-    ${mTotTop.map(v=>`<td style="text-align:right;font-size:10px">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
+    ${mTotTop.map((v,i)=>`<td style="text-align:right;font-size:10px">${(i>=getPipeClosedIdx()&&v>0)?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
     <td style="text-align:right;color:var(--orange)">${F(grandTotal)}</td>
   </tr>`;
 
@@ -1297,9 +1322,9 @@ function renderPipeSummary() {
     const varArr = d.variable||Array(12).fill(0);
     /* fixedArr: PLシート月別売上（締め月以降のみ表示）*/
     const rawFixedArr = (S.plCompanyRevenue&&S.plCompanyRevenue[c.key])||d.fixedMonths||Array(12).fill(d.fixed||0);
-    const lastClosed = S.lastClosedMonth || 0; /* 0=自動 or 1-12 */
-    const autoThreshold = new Date().getMonth(); /* 0-based: nowMonthIdx-1 */
-    const closedIdx = lastClosed > 0 ? lastClosed : autoThreshold;
+    // removed auto /* 0=自動 or 1-12 */
+    // /* 0-based: nowMonthIdx-1 */
+    const closedIdx = (S.lastClosedMonth && S.lastClosedMonth > 0) ? S.lastClosedMonth : 0;
     /* 締め月以前は固定を非表示（-）、以降は値を表示 */
     const fixedArr = rawFixedArr.map((v,i) => i < closedIdx ? 0 : v);
     const fixedTotal = fixedArr.reduce((s,v)=>s+(v||0),0);
@@ -1414,11 +1439,10 @@ function renderMemberAlloc(proj, cap, kadou4) {
   if (!S.memberCapacity) S.memberCapacity={};
   MEMBERS.forEach(m=>{
     if (!S.memberAlloc[m]) S.memberAlloc[m]={};
-    /* 稼働可能H: 手動設定 > ガント自動取得 の優先順 */
-    if (!S.memberCapacity[m] && S.memberCapacity[m]!==0) {
-      const ganttH=getMemberCapacity(m);
-      if (ganttH>0) S.memberCapacity[m]=ganttH;
-    }
+    /* 稼働可能H: ガントデータがあれば常に上書き（月切替に連動）*/
+    const ganttH=getMemberCapacity(m);
+    if (ganttH>0) S.memberCapacity[m]=ganttH;
+    else if (!S.memberCapacity[m]) S.memberCapacity[m]=0;
   });
 
   const projects=getPipeCompanies().map(c=>c.key);
@@ -1820,16 +1844,19 @@ function setPlCompareMode(mode) {
 }
 
 function setLastClosedMonth(val) {
-  /* val: '' = 自動判定, '1'-'12' = 手動設定月（1月=1, 4月=4） */
-  S.lastClosedMonth = val === '' ? null : parseInt(val, 10);
+  S.lastClosedMonth = (val && val !== '') ? parseInt(val, 10) : null;
   saveLS();
-  /* 全PL表示を再描画 */
+  /* 全ページの締め月セレクターを同期 */
+  document.querySelectorAll('.closing-month-sel').forEach(s => { s.value = val || ''; });
+  /* 全コンポーネント再描画 */
+  renderKPIs();
+  renderRevChart();
+  renderPipeSummary();
   renderPLKPIBoxes();
   renderPL1();
+  renderPL2KPIs();
   renderPL3();
-  /* ボタン更新 */
-  const sel = document.getElementById('pl-last-closed');
-  if (sel) sel.value = val;
+  closeDrill();
 }
 
 
@@ -1842,26 +1869,11 @@ function setLastClosedMonth(val) {
 function isMonthClosedGlobal(idx) {
   const yd = S.yojitsu;
   if (!yd?.rawByKey) return false;
-
-  /* ① 手動設定が優先（1-12の月番号。idx は0-based） */
-  if (S.lastClosedMonth !== null && S.lastClosedMonth !== undefined) {
-    return idx < S.lastClosedMonth; // 例: lastClosedMonth=4 → idx<4 (Jan-Apr) = true
+  /* 手動設定のみ（自動判定廃止）未設定時はForecast扱い */
+  if (S.lastClosedMonth !== null && S.lastClosedMonth !== undefined && S.lastClosedMonth > 0) {
+    return idx < S.lastClosedMonth;
   }
-
-  /* ② 自動判定: 「前々月以前」かつSGA実績あり、を確定とみなす
-     nowMonthIdx-1 を閾値にすることで「先月」を自動的にForecastと見なす保守的な判定。
-     例) 6月1日: nowMonthIdx=5, 閾値=4 → 5月(idx=4)以降はForecast確定
-         7月1日: nowMonthIdx=6, 閾値=5 → 6月(idx=5)以降はForecast確定 */
-  const nowMonthIdx = new Date().getMonth(); // 0-indexed
-  if (idx >= nowMonthIdx - 1) return false;  // 前月・今月・来月以降はForecast確定
-
-  /* ★ SGA合計は計算行(販売管理費 計)ではなく個別行から集計
-     （理由: Excelの数式キャッシュ不具合で計算行がほぼゼロになるため） */
-  const SGA_CHECK_KEYS = ['外注費','交際費','会議費','旅費交通費','通信費',
-    '消耗品費','新聞図書費','諸会費','車両費','地代家賃','租税公課','販売管理費'];
-  const sgaSum = SGA_CHECK_KEYS.reduce((s, k) =>
-    s + (yd.rawByKey[k]?.[idx] || 0), 0);
-  return sgaSum > 0;
+  return false;
 }
 
 /* ═════════════════════════════════════════════════════════
@@ -1962,8 +1974,15 @@ function renderPLDetail() {
   buildMonthButtons();
   if (!S.plSelMonth) S.plSelMonth=getLatestDataMonth();
   /* ★ 最終締め月セレクターの値を復元 */
-  const sel=document.getElementById('pl-last-closed');
-  if (sel) sel.value=S.lastClosedMonth||'';
+  /* 最終締め月：未設定時は lastUpdated の前月をデフォルト設定 */
+  if (!S.lastClosedMonth && S.lastUpdated) {
+    const m = String(S.lastUpdated).match(/(\d{4})\/(\d{2})/);
+    if (m) {
+      const prev = Math.max(1, parseInt(m[2]) - 1);
+      S.lastClosedMonth = prev;
+    }
+  }
+  document.querySelectorAll('.closing-month-sel').forEach(s => { s.value = S.lastClosedMonth||''; });
   if (S.plViewMode) setPlViewMode(S.plViewMode);
   if (S.plCompareMode) setPlCompareMode(S.plCompareMode);
   updateMonthButtonActive(); updatePLBadge();
