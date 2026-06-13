@@ -510,7 +510,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--navy-pale);border-radius:8px;padding:10px;border:1px solid var(--border)">
         <div style="font-size:9px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.8px;grid-column:1/-1;margin-bottom:2px">
-          📊 確定売上（Forecast確定案件のみ）
+          📊 確定売上
         </div>
         <div class="kpi" style="--kc:#1C2D6B;margin:0">
           <div class="kpi-lbl">年間売上合計</div>
@@ -562,7 +562,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
         <div class="card">
           <div class="card-hdr" style="flex-wrap:wrap;gap:6px">
             <span class="card-badge">②</span>
-            <span class="card-title">パイプライン — 案件別 月次売上 ＆ 工数入力</span>
+            <span class="card-title">パイプライン — 案件別 月次売上</span>
             <button type="button" onclick="togglePipeDetail()" id="pipe-detail-btn"
               style="margin-left:auto;font-size:10px;padding:3px 10px;border-radius:4px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-family:inherit">
               月別詳細 ▼
@@ -838,7 +838,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
    定数・状態管理
 ═════════════════════════════════════════════════════════ */
 const TGT    = 10000000;
-const LS_KEY = 'fn_dashboard_v20'; // v20: burnData/parseBS修正（v21と同キー、キャッシュ継続）
+const LS_KEY = 'fn_dashboard_v22'; /* v22: 変動データリセット */ // v20: burnData/parseBS修正（v21と同キー、キャッシュ継続）
 const F      = v => '¥' + Math.abs(Math.round(v)).toLocaleString('ja-JP');
 const Pct    = (v,t) => Math.min(100, Math.max(0, v / t * 100));
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
@@ -1087,6 +1087,8 @@ function processFile(buf) {
     S.glData  = safeparse(parseGL, wb.Sheets['総勘定元帳']);
     S.plSelMonth = null;
     S.lastUpdated = new Date().toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    S.plSelMonth = null; /* Excelアップロード後は最新データ月に自動移動 */
+
     saveLS();
     showDash();
     setTimeout(() => { renderAll(); renderPLDetail(); }, 0);
@@ -1191,7 +1193,11 @@ function getPipeClosedIdx() {
   if (S.lastClosedMonth !== null && S.lastClosedMonth !== undefined && S.lastClosedMonth > 0) {
     return S.lastClosedMonth;
   }
-  return 0; /* 未設定時は全月対象 */
+  if (S.lastUpdated) {
+    const mm = String(S.lastUpdated).match(/(\d{4}).(\d{2})/);
+    if (mm) return Math.max(1, parseInt(mm[2]) - 1);
+  }
+  return 0;
 }
 
 function getPipeTotal() {
@@ -1218,6 +1224,59 @@ function getPipeHoursTotal() { const total=Array(12).fill(0); const byClient={};
 
 
 /* 会社追加 */
+
+/* パイプラインデータ エクスポート */
+function exportPipeData() {
+  const data = JSON.stringify({
+    pipeData: S.pipeData,
+    pipeCompanies: S.pipeCompanies,
+    savedAt: new Date().toLocaleString('ja-JP')
+  }, null, 2);
+  /* Blob+FileReaderでbase64エンコードしてダウンロード（file://対応）*/
+  const blob = new Blob([data], {type:'application/json'});
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const a = document.createElement('a');
+    a.href = e.target.result;
+    a.download = 'pipeline_' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+  reader.onerror = function() {
+    /* フォールバック: テキストエリアで表示してコピー */
+    const ta = document.createElement('textarea');
+    ta.value = data;
+    ta.style.cssText = 'position:fixed;top:10%;left:10%;width:80%;height:70%;z-index:9999;font-size:11px;padding:8px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    alert('クリップボードにコピーしました。メモ帳等に貼り付けて .json で保存してください。');
+    document.body.removeChild(ta);
+  };
+  reader.readAsDataURL(blob);
+}
+
+/* パイプラインデータ インポート */
+function importPipeData() {
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.json';
+  inp.onchange=function(e){
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      try {
+        const d=JSON.parse(ev.target.result);
+        if (d.pipeData) S.pipeData=d.pipeData;
+        if (d.pipeCompanies) S.pipeCompanies=d.pipeCompanies;
+        saveLS(); renderPipeSummary(); onPipeChange();
+        alert('読み込み完了（保存日時: '+d.savedAt+'）');
+      } catch(err) { alert('読み込みエラー: '+err.message); }
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
+}
+
 function addPipeCompany() {
   const inp = document.getElementById('pipe-new-name');
   if (!inp) return;
@@ -1269,13 +1328,13 @@ function renderPipeSummary() {
   /* デバッグ: PLデータの状態確認 */
   initPipeData();
   const companies = getPipeCompanies();
+  const ci = getPipeClosedIdx(); /* 関数全体で共有する締め月インデックス */
   const list = document.getElementById('pipe-summary-list');
   if (!list) return;
 
   /* サマリーリスト（イベントリスナー方式で確実に動作） */
   list.innerHTML = companies.map(c => {
     const d = S.pipeData[c.key] || {fixed:0,variable:Array(12).fill(0)};
-    const ci=getPipeClosedIdx();
     const plFixed=(S.plCompanyRevenue&&S.plCompanyRevenue[c.key])||Array(12).fill(d.fixed||0);
     /* 締め月以降のみ合計 */
     let subtotal=0;
@@ -1304,37 +1363,61 @@ function renderPipeSummary() {
   let html = '';
 
   /* ① 月別合計行を一番上に */
-  const mTotTop = getPipeMonthlyTotal();
+  /* 月別固定・変動・合計を事前計算（締め月以降のみ）*/
+  const mFixed = Array(12).fill(0), mVar = Array(12).fill(0);
+  companies.forEach(c => {
+    const d = S.pipeData[c.key] || {};
+    const rawFixed = (S.plCompanyRevenue && S.plCompanyRevenue[c.key]) || d.fixedMonths || Array(12).fill(d.fixed||0);
+    for (let i = ci; i < 12; i++) {
+      mFixed[i] += (rawFixed[i] || 0);
+      mVar[i]   += ((d.variable || [])[i] || 0);
+    }
+  });
+  const mTotTop = mFixed.map((f,i) => f + mVar[i]);
   const grandTotal = getPipeTotal();
-  html+=`<tr style="background:var(--navy);color:#fff;font-weight:700">
+  const fixedGrand = mFixed.reduce((s,v)=>s+v, 0);
+  const varGrand   = mVar.reduce((s,v)=>s+v, 0);
+
+  html += `<tr style="background:var(--navy);color:#fff;font-weight:700">
     <th style="min-width:100px">案件</th>
     <th style="min-width:50px">種別</th>
     ${mnths.map((m,mi)=>`<th style="min-width:60px">${m}</th>`).join('')}
     <th style="min-width:70px">合計</th>
   </tr>
-  <tr style="background:#243580;color:#fff;font-weight:700;border-bottom:3px solid var(--navy)">
-    <td colspan="2" style="color:#fff">月別合計</td>
-    ${mTotTop.map((v,i)=>`<td style="text-align:right;font-size:10px">${(i>=getPipeClosedIdx()&&v>0)?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
-    <td style="text-align:right;color:var(--orange)">${F(grandTotal)}</td>
+  <tr style="background:#1A3070;color:#fff;font-weight:700;border-bottom:2px solid #0d1f50">
+    <td colspan="2" style="color:#fff;font-size:11px">月別合計</td>
+    ${mTotTop.map((v,i)=>`<td style="text-align:right;font-size:10px">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
+    <td style="text-align:right;color:var(--orange)">${grandTotal>0?grandTotal.toLocaleString('ja-JP'):'-'}</td>
+  </tr>
+  <tr style="background:#243580;color:#aac">
+    <td colspan="2" style="font-size:10px;padding:3px 8px;color:#cce">└ 固定計</td>
+    ${mFixed.map(v=>`<td style="text-align:right;font-size:10px">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
+    <td style="text-align:right;font-size:10px;color:#cce">${fixedGrand>0?fixedGrand.toLocaleString('ja-JP'):'-'}</td>
+  </tr>
+  <tr style="background:#2d4090;color:#aac;border-bottom:3px solid #1A3070">
+    <td colspan="2" style="font-size:10px;padding:3px 8px;color:#cce">└ 変動計</td>
+    ${mVar.map(v=>`<td style="text-align:right;font-size:10px">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
+    <td style="text-align:right;font-size:10px;color:#cce">${varGrand>0?varGrand.toLocaleString('ja-JP'):'-'}</td>
   </tr>`;
 
   /* ② 各社 固定行/変動行/小計行 */
-  companies.forEach((c, ci) => {
+  companies.forEach((c, cIdx) => {
     const d = S.pipeData[c.key]||{fixed:0,variable:Array(12).fill(0)};
     const varArr = d.variable||Array(12).fill(0);
     /* fixedArr: PLシート月別売上（締め月以降のみ表示）*/
     const rawFixedArr = (S.plCompanyRevenue&&S.plCompanyRevenue[c.key])||d.fixedMonths||Array(12).fill(d.fixed||0);
     // removed auto /* 0=自動 or 1-12 */
     // /* 0-based: nowMonthIdx-1 */
-    const closedIdx = (S.lastClosedMonth && S.lastClosedMonth > 0) ? S.lastClosedMonth : 0;
+    const closedIdx = ci; /* outer scope の ci = getPipeClosedIdx() */
     /* 締め月以前は固定を非表示（-）、以降は値を表示 */
     const fixedArr = rawFixedArr.map((v,i) => i < closedIdx ? 0 : v);
-    const fixedTotal = fixedArr.reduce((s,v)=>s+(v||0),0);
-    const varTotal = varArr.reduce((s,v)=>s+(v||0),0);
-    /* ③ 小計 = 固定 + 変動（月別）*/
-    const subtotalArr = fixedArr.map((fv,i) => (fv||0)+(varArr[i]||0));
+    /* 締め月以降のみ集計 */
+    const fixedTotal = fixedArr.slice(closedIdx).reduce((s,v)=>s+(v||0),0);
+    const varTotal   = varArr.slice(closedIdx).reduce((s,v)=>s+(v||0),0);
+    /* 小計 = 固定 + 変動（月別、締め月以前は固定0+変動で表示のみ）*/
+    const subtotalArr = varArr.map((vv,i) => i < closedIdx ? (vv||0) : (fixedArr[i]||0)+(vv||0));
     const subtotalTotal = fixedTotal + varTotal;
-    const rowBg = ci%2===0 ? '' : 'background:#FAFBFD';
+    const rowBg = cIdx%2===0 ? '' : 'background:#FAFBFD';
 
     /* 固定行 */
     html+=`<tr style="${rowBg}">
@@ -1355,9 +1438,9 @@ function renderPipeSummary() {
       <td style="font-size:10px;color:var(--muted);white-space:nowrap">変動</td>
       ${varArr.map((v,mi)=>`<td style="padding:3px 4px">
         <input class="pm-inp" data-key="${c.key}" data-mi="${mi}" data-type="variable"
-          value="${v>0?v.toLocaleString('ja-JP'):''}" placeholder="0"
+          value="${v&&v>0?v.toLocaleString('ja-JP'):'0'}"
           onchange="onPmInpChange(this)" onfocus="this.value=this.value.replace(/,/g,'')" onblur="fmtPmInp(this)"
-          style="width:56px">
+          style="width:56px;text-align:right;border:1px solid var(--border);border-radius:3px;padding:2px 4px;font-size:11px">
       </td>`).join('')}
       <td style="font-size:10px;font-weight:600;text-align:right">${varTotal>0?F(varTotal):'-'}</td>
     </tr>`;
@@ -1380,7 +1463,7 @@ function renderPipeSummary() {
 }
 
 
-function fmtPmInp(el) { const n=parseInt(el.value.replace(/,/g,''),10); el.value=(!isNaN(n)&&n>0)?n.toLocaleString('ja-JP'):''; }
+function fmtPmInp(el) { const n=parseInt(el.value.replace(/,/g,''),10)||0; el.value=n>0?n.toLocaleString('ja-JP'):'0'; }
 function onPmInpChange(el) {
   const key=el.dataset.key, mi=el.dataset.mi!==undefined?+el.dataset.mi:null, type=el.dataset.type;
   if (!S.pipeData[key]) S.pipeData[key]={fixed:0,variable:Array(12).fill(0)};
@@ -1403,21 +1486,8 @@ function onPmInpChange(el) {
 function renderPipeTotRow() { /* replaced by renderPipeSummary */ }
 function syncPipeToProj() { refreshProjHours(); } /* 工数管理は④パネルで直接入力 */
 function renderPipelineInputs() {
-  if (!S.pipeline?.clients) return;
+  /* 変動データはダッシュボード上での手入力のみ（Excelからの自動配分なし）*/
   initPipeData();
-  /* Excelパイプラインから初期値を設定（固定費なし、変動として月均等配分） */
-  S.pipeline.clients.forEach((client) => {
-    const cfg=getPipeCompanies().find(c=>client.name.includes(c.key)); if(!cfg) return;
-    const d=S.pipeData[cfg.key];
-    if (!d) return;
-    const hasData=(d.fixed||0)>0||(d.variable||[]).some(v=>v>0);
-    if (!hasData && client.amount>0) {
-      const futureMonths=[5,6,7,8,9,10,11];
-      const perMonth=Math.round(client.amount/futureMonths.length);
-      if (!d.variable) d.variable=Array(12).fill(0);
-      futureMonths.forEach(mi=>{ d.variable[mi]=perMonth; });
-    }
-  });
   renderPipeSummary();
 }
 
@@ -1812,15 +1882,18 @@ const fmtPL = v => { if (v===null||v===undefined||isNaN(v)) return '--'; const a
 const diffColor = (diff, sign) => (diff*sign>=0)?'#1E7D4A':'#C0392B';
 function renderPLIfNeeded() {
   if (!S.yojitsu) return;
-  /* ボタン状態を復元して全PL描画 */
+  /* 締め月未設定時は lastUpdated から自動設定 */
+  if (!S.lastClosedMonth && S.lastUpdated) {
+    const mm = String(S.lastUpdated).match(/(\d{4}).(\d{2})/);
+    if (mm) {
+      S.lastClosedMonth = Math.max(1, parseInt(mm[2]) - 1);
+      document.querySelectorAll('.closing-month-sel').forEach(s => { s.value = S.lastClosedMonth; });
+    }
+  }
   if (S.plViewMode) setPlViewMode(S.plViewMode);
   if (S.plCompareMode) setPlCompareMode(S.plCompareMode);
-  updateMonthButtonActive();
-  updatePLBadge();
-  renderPLKPIBoxes();
-  renderPL1();
-  renderPL2();
-  renderPL3();
+  updateMonthButtonActive(); updatePLBadge();
+  renderPLKPIBoxes(); renderPL1(); renderPL2(); renderPL3();
 }
 
 /* ═════════════════════════════════════════════════════════
@@ -1882,9 +1955,14 @@ function setLastClosedMonth(val) {
 function isMonthClosedGlobal(idx) {
   const yd = S.yojitsu;
   if (!yd?.rawByKey) return false;
-  /* 手動設定のみ（自動判定廃止）未設定時はForecast扱い */
+  /* 手動設定が最優先 */
   if (S.lastClosedMonth !== null && S.lastClosedMonth !== undefined && S.lastClosedMonth > 0) {
     return idx < S.lastClosedMonth;
+  }
+  /* 未設定時: lastUpdated の前月をフォールバックとして使用 */
+  if (S.lastUpdated) {
+    const mm = String(S.lastUpdated).match(/(\d{4}).(\d{2})/);
+    if (mm) return idx < Math.max(1, parseInt(mm[2]) - 1);
   }
   return false;
 }
@@ -1985,7 +2063,7 @@ function renderPL2KPIs() {
 function renderPLDetail() {
   const {yojitsu,bsData}=S; if(!yojitsu&&!bsData) return;
   buildMonthButtons();
-  if (!S.plSelMonth) S.plSelMonth=getLatestDataMonth();
+  S.plSelMonth = S.plSelMonth || getLatestDataMonth(); /* 未設定時は最新データ月 */
   /* ★ 最終締め月セレクターの値を復元 */
   /* 最終締め月：未設定時は lastUpdated の前月をデフォルト設定 */
   if (!S.lastClosedMonth && S.lastUpdated) {
@@ -2153,9 +2231,13 @@ function renderPL1() {
         const dPvDiff=dPrevAct!==null?da-dPrevAct:null,dPvRate=(dPrevAct!==null&&dPrevAct!==0)?(da/Math.abs(dPrevAct)*100).toFixed(1)+'%':'-';
         const dBtn=S.glData?`<button class="pl1-drillbtn" onclick="openDrill('${dr.label}',${S.plSelMonth})">元帳</button>`:'';
         const dActVal=idxList.reduce((s,i)=>s+(isMonthClosedGlobal(i)?(dr.actual[i]||0):((dr.fc||dr.budget)[i]||0)),0);
+        const dSingle=otherData[singleIdx]||0;
+        const dBudSingle=dr.budget[singleIdx]||0;
         const dBudCumul=sumAcross(dr.budget,idxList);
         const dYjDiffCumul=dBudCumul!==0?dActVal-dBudCumul:null;
         const dYjRateCumul=dBudCumul!==0?(dActVal/Math.abs(dBudCumul)*100).toFixed(1)+'%':'0.0%';
+        const dYjDiffSingle=dBudSingle!==0?dSingle-dBudSingle:null;
+        const dYjRateSingle=dBudSingle!==0?(dSingle/Math.abs(dBudSingle)*100).toFixed(1)+'%':'-';
         html+=`<tr class="other-sub-row">
           <td>${dr.label} ${dBtn}</td>
           ${isCumul
@@ -2164,9 +2246,9 @@ function renderPL1() {
                <td class="num ${numClass(dYjDiffCumul,true)}">${FCD(dYjDiffCumul)}</td>
                <td class="num">${dYjRateCumul}</td>`
             : `<td class="num" style="border-left:2px solid var(--border)">${FC(dSingle)}</td>
-               <td class="num">${FC(db)}</td>
-               <td class="num ${numClass(dYjDiff,true)}">${FCD(dYjDiff)}</td>
-               <td class="num">${dYjRate}</td>
+               <td class="num">${FC(dBudSingle)}</td>
+               <td class="num ${numClass(dYjDiffSingle,true)}">${FCD(dYjDiffSingle)}</td>
+               <td class="num">${dYjRateSingle}</td>
                <td class="num ${numClass(dPvDiff,true)}">${isPrevYear?'-':FCD(dPvDiff)}</td>
                <td class="num">${isPrevYear?'-':dPvRate}</td>`
           }
@@ -2240,7 +2322,7 @@ function renderPL3() {
   addRow('売上高','売上高','pl3-header',false,getPLArr('売上高'),true);
   addRow('売上総損益','売上総損益金額','pl3-summary',false,getPLArr('売上総損益金額'),false);
   tbl+=`<tr class="pl3-row pl3-header"><td colspan="13">販売管理費</td></tr>`;
-  ['外注費','旅費交通費','会議費','交際費'].forEach(k=>{ addRow('　'+k,k,'pl3-sub',false,yojitsu.rawByKey[k]||Array(12).fill(0),true); });
+  ['外注費','旅費交通費','会議費','交際費'].forEach(k=>{ addRow('　'+k,k,'pl3-sub',false,getPLArr(k),true); }); /* ★ getPLArr: 締め月で実績/FC切替 */
   addRow('　その他経費','__other','pl3-other-head',true,getPLArr('__other'),false);
   if (S.pl3Expand) {
     yojitsu.otherDetailRows.forEach(dr=>{
@@ -2318,13 +2400,20 @@ function parseYojitsuSplit(actualSheet, budgetSheet) {
 
   if (budgetSheet) {
     const rows = XLSX.utils.sheet_to_json(budgetSheet, {header:1, raw:true, defval:null});
+    /* 新フォーマット判定: A列=判定列追加により B列がラベル、データはC列(index2)以降 */
+    const isNewFmt = rows[2] && rows[2][0] === '判定';
+    const lblCol   = isNewFmt ? 1 : 0;
+    const dataOfs  = isNewFmt ? 2 : 1;
     rows.forEach(row => {
-      if (!row || row[0] == null) return;
-      const lbl = row[0].toString().replace(/^[\s\u3000]+/,'').trim();
+      if (!row || row[lblCol] == null) return;
+      const lbl = row[lblCol].toString().replace(/^[\s\u3000]+/,'').trim();
       if (!lbl) return;
       const bud12 = [], fc12 = [];
-      for (let m = 0; m < 12; m++) { bud12.push(num(row[1 + m * 2])); fc12.push(num(row[2 + m * 2])); }
-      budByKey[lbl] = bud12; fcByKey[lbl]  = fc12;
+      for (let m = 0; m < 12; m++) {
+        bud12.push(num(row[dataOfs + m * 2]));
+        fc12.push(num(row[dataOfs + 1 + m * 2]));
+      }
+      budByKey[lbl] = bud12; fcByKey[lbl] = fc12;
     });
   }
 
