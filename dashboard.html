@@ -679,38 +679,10 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
 
     <!-- 最終締め月セレクター -->
     <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--navy-pale);border-radius:6px;border:1px solid var(--border);flex-wrap:wrap">
-      <div class="closed-month-sel" title="実績確定月を設定。それ以降は実績シートの値→予算シートFCの順で自動選択">
-        <label>📅 最終締め月：</label>
-        <select id="pl-last-closed" class="closing-month-sel" onchange="setLastClosedMonth(this.value)">
-          <option value="1">1月</option>
-          <option value="2">2月</option>
-          <option value="3">3月</option>
-          <option value="4">4月</option>
-          <option value="5">5月</option>
-          <option value="6">6月</option>
-          <option value="7">7月</option>
-          <option value="8">8月</option>
-          <option value="9">9月</option>
-          <option value="10">10月</option>
-          <option value="11">11月</option>
-          <option value="12">12月</option>
-        </select>
+      
       </div>
-      <span style="font-size:10px;color:var(--muted)">締め月以前=実績、以降=実績シートのForecast→予算シートFC の順で自動選択</span>
-    </div>
-
-    <!-- KPI 6枚 -->
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:10px">
-      <div class="kpi" style="--kc:#1C2D6B">
-        <div class="kpi-lbl">売上高</div>
-        <div class="kpi-val" id="plk-rev" style="font-size:17px">--</div>
-        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted)">
-          <span>予算 <span id="plk-rev-bud" style="color:var(--navy);font-weight:600">--</span></span>
-          <span>予算比 <span id="plk-rev-rate" style="font-weight:700">--</span></span>
-        </div>
-        <div class="kpi-bar"><div class="kpi-fill" id="plk-rev-bar" style="width:0%"></div></div>
-      </div>
-      <div class="kpi" style="--kc:#1E7D4A">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+      <div class="kpi" style="--kc:#1E7D4A;flex:1;min-width:180px">
         <div class="kpi-lbl">売上総利益</div>
         <div class="kpi-val" id="plk-gp" style="font-size:17px">--</div>
         <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted)">
@@ -719,7 +691,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
         </div>
         <div class="kpi-bar"><div class="kpi-fill" id="plk-gp-bar" style="width:0%;background:var(--green)"></div></div>
       </div>
-      <div class="kpi" style="--kc:#F0A000">
+      <div class="kpi" style="--kc:#F0A000;flex:1;min-width:180px">
         <div class="kpi-lbl">営業利益</div>
         <div class="kpi-val" id="plk-op" style="font-size:17px">--</div>
         <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted)">
@@ -728,20 +700,23 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
         </div>
         <div class="kpi-bar"><div class="kpi-fill" id="plk-op-bar" style="width:0%;background:var(--orange)"></div></div>
       </div>
-      <div class="kpi" style="--kc:#1C2D6B">
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+      <div class="kpi" style="--kc:#1C2D6B;flex:1;min-width:160px">
         <div class="kpi-lbl">現預金残高</div>
         <div class="kpi-val" id="pl2-cash" style="font-size:17px">--</div>
         <div class="kpi-note" id="pl2-cash-note">選択月末時点</div>
       </div>
-      <div class="kpi" style="--kc:#C0392B">
+      <div class="kpi" style="--kc:#C0392B;flex:1;min-width:160px">
         <div class="kpi-lbl">ネットバーン（月次）</div>
         <div class="kpi-val" id="pl2-burn" style="font-size:17px">--</div>
         <div class="kpi-note">現預金減少額（正=バーン）</div>
       </div>
-      <div class="kpi" style="--kc:#F0A000">
+      <div class="kpi" style="--kc:#F0A000;flex:1;min-width:160px">
         <div class="kpi-lbl">ランウェイ</div>
         <div class="kpi-val" id="pl2-runway" style="font-size:17px">--</div>
         <div class="kpi-note">現預金 ÷ 直近3ヶ月平均バーン</div>
+      </div>
       </div>
     </div>
 
@@ -803,7 +778,8 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
       </div>
       <div class="card-body" style="padding:0">
         <div style="overflow-x:auto" id="pl3-outer">
-          <div id="pl3-tbl"></div>
+          <div id="pl3-mode-btns" style="display:flex;gap:6px;margin-bottom:8px"></div>
+        <div id="pl3-tbl"></div>
         </div>
       </div>
     </div>
@@ -861,7 +837,7 @@ let S = {
   plActual:null, plBudget:null, plBudgetManual:{}, plBudgetMode:'file',
   plActualOverrides:{}, plBudgetOverrides:{},
   plActualSheet:null, plBudgetSheet:null,
-  yojitsu:null, bsData:null, glData:null, plSelMonth:null, plSelPeriod:null, pl3Expand:false,
+  yojitsu:null, bsData:null, glData:null, plSelMonth:null, pl3PostMode:'fc', /* fc=Forecast, bud=予算 */ plSelPeriod:null, pl3Expand:false,
   /* ★ FIX: 最終締め月（null=自動判定、1-12=手動設定月） */
   plViewMode:'monthly',    /* 'monthly'=単月 / 'cumulative'=累計 */
   plCompareMode:'prevMonth', /* 'prevMonth'=前月比 / 'prevYear'=前年比 */
@@ -1976,11 +1952,14 @@ function isMonthClosedGlobal(idx) {
    データ取得ヘルパー
 ═════════════════════════════════════════════════════════ */
 
-function getPLArr(key) {
-  /* 締め月以前=rawByKey(実績)、以降=fcByKey(予算シートFC) */
+function getPLArr(key, mode) {
+  /* 締め月以前=rawByKey(実績)、以降=mode('fc'=Forecast/'bud'=予算) */
   const raw = S.yojitsu?.rawByKey?.[key] || Array(12).fill(0);
-  const fc  = S.yojitsu?.fcByKey?.[key] || S.yojitsu?.budByKey?.[key] || Array(12).fill(0);
-  return raw.map((v, i) => isMonthClosedGlobal(i) ? (v || 0) : (fc[i] || 0));
+  const m = mode || S.pl3PostMode || 'fc';
+  const post = m === 'bud'
+    ? (S.yojitsu?.budByKey?.[key] || Array(12).fill(0))
+    : (S.yojitsu?.fcByKey?.[key] || S.yojitsu?.budByKey?.[key] || Array(12).fill(0));
+  return raw.map((v, i) => isMonthClosedGlobal(i) ? (v || 0) : (post[i] || 0));
 }
 function getCash() {
   /* 締め月以前=actual、以降=cashFC(予算シートFC) */
@@ -2158,9 +2137,9 @@ function renderPL1() {
     const calcMonthVal=(idx)=>{
       /* 締め月以前=rawArr(実績)、以降=fcBase(予算FC) */
       if (customActArr) return customActArr[idx]||0;
-      if (isOther) return rawArr[idx]||0;
-      if (isMonthClosedGlobal(idx)) return rawArr[idx]||0;
-      return fcBase[idx]||0;
+      /* __other も他の行と同様、締め月で実績/FC切替 */
+      if (isMonthClosedGlobal(idx)) return (rawArr?.[idx])||0;
+      return (fcBase?.[idx])||0;
     };
     /* 累計: Jan〜選択月の合計 */
     const act=idxList.reduce((s,i)=>s+calcMonthVal(i),0);
@@ -2182,7 +2161,7 @@ function renderPL1() {
 
   const numClass=(v,invert)=>{ if(!v||v===0) return ''; const pos=invert?v<0:v>0; return pos?'pos':'neg'; };
   const FCD=v=>{ if(v===null||v===undefined) return '0'; return v===0?'0':Math.round(v).toLocaleString('ja-JP'); };
-  const FC=v=>{ if(v===null||v===undefined) return '-'; if(v===0) return '-'; return Math.round(v).toLocaleString('ja-JP'); };
+  const FC=v=>{ if(v===null||v===undefined) return '-'; if(v===0) return '0'; return Math.round(v).toLocaleString('ja-JP'); };
 
   yojitsu.plRows.forEach(row=>{
     if (row.isRate) {
@@ -2190,10 +2169,16 @@ function renderPL1() {
       const budNumer=sumAcross(yojitsu.budByKey[row.numer],idxList),budDenom=sumAcross(yojitsu.budByKey[row.denom],idxList);
       const actRate=denom?(numer/denom*100):0,budRate=budDenom?(budNumer/budDenom*100):0;
       const diff=actRate-budRate, rateCol=actRate>=0?'var(--green)':'var(--red)';
+      const diffCol=diff>=0?'var(--green)':'var(--red)';
+      const diffStr=diff===0?'-':(diff>0?'+':'')+diff.toFixed(1)+'pt';
+      const ratioStr=budRate!==0?(actRate/budRate*100).toFixed(1)+'%':'-';
       html+=`<tr style="background:#F9FAFD">
         <td style="padding-left:16px;color:var(--muted);font-size:10px">${row.label}</td>
         <td class="num" style="font-weight:600;font-size:10px;color:${rateCol};border-left:2px solid var(--border)">${actRate.toFixed(1)}%</td>
-        <td colspan="${isCumul?3:5}" style="color:var(--muted);font-size:10px"></td>
+        <td class="num" style="font-size:10px;color:var(--muted)">${budRate.toFixed(1)}%</td>
+        <td class="num" style="font-size:10px;color:${diffCol}">${diffStr}</td>
+        <td class="num" style="font-size:10px">${ratioStr}</td>
+        ${isCumul?'':`<td class="num" style="font-size:10px;color:var(--muted)">-</td>`}
       </tr>`;
       return;
     }
@@ -2203,11 +2188,14 @@ function renderPL1() {
     const yjDiffClass=isExpense?numClass(yojitsuDiff,true):numClass(yojitsuDiff,false);
     const pvDiffClass=isExpense?numClass(prevDiff,true):numClass(prevDiff,false);
     const rowClass=row.isSummary?'summary-row':(row.level===1?'sub-row':'');
-    const drillKey=isOther?null:row.key;
-    const drillBtn=(drillKey&&S.glData)?`<button class="pl1-drillbtn" onclick="openDrill('${drillKey}',${S.plSelMonth})">元帳</button>`:'';
+    const drillKey=row.key;
+    const drillBtn=(S.glData)?`<button class="pl1-drillbtn" onclick="openDrill('${drillKey}',${S.plSelMonth})">元帳</button>`:'';
     const yjDiffClassCumul=isExpense?numClass(yojitsuDiffCumul,true):numClass(yojitsuDiffCumul,false);
+    const labelCell = row.isOtherHead
+      ? `<span onclick="togglePL3Other()" style="cursor:pointer;user-select:none">${row.label} ${S.pl3Expand?'▲':'▼'}</span> ${drillBtn}`
+      : `${row.label} ${drillBtn}`;
     html+=`<tr class="${rowClass}">
-      <td>${row.label} ${drillBtn}</td>
+      <td>${labelCell}</td>
       ${isCumul
         ? `<td class="num ${act<0?'neg':''}" style="border-left:2px solid var(--border);font-weight:${row.isSummary?700:400}">${FC(act)}</td>
            <td class="num">${FC(budCumul)}</td>
@@ -2298,7 +2286,15 @@ function renderPL3() {
   const el=document.getElementById('pl3-tbl'); if(!el) return;
   if (!yojitsu) { el.innerHTML='<div class="empty-msg">予実管理シートを読み込んでください</div>'; return; }
   const latestM=getLatestDataMonth(); const gl=S.glData;
-  const FC=v=>{ if(v===null||v===undefined) return '-'; if(v===0) return '-'; return Math.round(v).toLocaleString('ja-JP'); };
+  const FC=v=>{ if(v===null||v===undefined) return '-'; if(v===0) return '0'; return Math.round(v).toLocaleString('ja-JP'); };
+  /* 予算/FC 切替ボタン（固定エリアに描画）*/
+  const isFC = (S.pl3PostMode||'fc') === 'fc';
+  const btnArea = document.getElementById('pl3-mode-btns');
+  if (btnArea) btnArea.innerHTML = `
+    <button onclick="setPl3PostMode('fc')"  style="padding:4px 14px;font-size:11px;border-radius:4px;border:1px solid #1A3070;cursor:pointer;font-family:inherit;background:${isFC?'#1A3070':'#ffffff'};color:${isFC?'#ffffff':'#1A3070'};font-weight:${isFC?'700':'400'}">Forecast</button>
+    <button onclick="setPl3PostMode('bud')" style="padding:4px 14px;font-size:11px;border-radius:4px;border:1px solid #1A3070;cursor:pointer;font-family:inherit;background:${!isFC?'#1A3070':'#ffffff'};color:${!isFC?'#ffffff':'#1A3070'};font-weight:${!isFC?'700':'400'}">予算</button>
+  `;
+
   let tbl='<table class="pl3-tbl"><thead><tr>';
   tbl+='<th>科目</th>';
   MONTH_NAMES.forEach(m=>tbl+=`<th>${m}</th>`);
@@ -2323,21 +2319,25 @@ function renderPL3() {
   addRow('売上総損益','売上総損益金額','pl3-summary',false,getPLArr('売上総損益金額'),false);
   tbl+=`<tr class="pl3-row pl3-header"><td colspan="13">販売管理費</td></tr>`;
   ['外注費','旅費交通費','会議費','交際費'].forEach(k=>{ addRow('　'+k,k,'pl3-sub',false,getPLArr(k),true); }); /* ★ getPLArr: 締め月で実績/FC切替 */
-  addRow('　その他経費','__other','pl3-other-head',true,getPLArr('__other'),false);
+  addRow('　その他経費','__other','pl3-other-head',true,getPLArr('__other'),true);
   if (S.pl3Expand) {
     yojitsu.otherDetailRows.forEach(dr=>{
       tbl+=`<tr class="pl3-row pl3-other-detail"><td>${dr.label}</td>`;
       for (let mi=0;mi<12;mi++){
         const arr=dr.actual.map((v,i)=>isMonthClosedGlobal(i)?(v||0):((dr.fc||dr.budget)[i]||0));
         const v=arr[mi]||0;
+        const hasData=isMonthClosedGlobal(mi);
         const onclk=gl?`onclick="openDrill('${dr.label}',${mi+1})"`:'';
-        tbl+=`<td class="cell-clickable" ${onclk}>${FC(v)}</td>`;
+        tbl+=`<td class="cell-clickable ${hasData?'has-data':'no-data'}" ${onclk}>${FC(v)}</td>`;
       }
       tbl+='</tr>';
     });
   }
   addRow('販管費 計','販売管理費 計','pl3-summary',false,getPLArr('販売管理費 計'),false);
   addRow('営業利益','営業損益金額','pl3-summary',false,getPLArr('営業損益金額'),false);
+  addRow('営業外収益','営業外収益','',false,getPLArr('営業外収益'),false);
+  addRow('営業外費用','営業外費用','',false,getPLArr('営業外費用'),false);
+  addRow('経常利益','経常損益金額','pl3-summary',false,getPLArr('経常損益金額'),false);
   addRow('当期純損益','当期純損益金額','pl3-summary',false,getPLArr('当期純損益金額'),false);
   if (bsData) {
     tbl+=`<tr class="pl3-row pl3-cash"><td>現預金残高（BS）</td>`;
@@ -2348,6 +2348,10 @@ function renderPL3() {
   el.innerHTML=tbl;
 }
 
+function setPl3PostMode(mode) {
+  S.pl3PostMode = mode;
+  renderPL3();
+}
 function togglePL3Other() { S.pl3Expand=!S.pl3Expand; renderPL1(); renderPL3(); }
 
 /* ④ ドリルスルー */
@@ -2458,11 +2462,14 @@ function parseYojitsuSplit(actualSheet, budgetSheet) {
     return acc;
   }, Array(12).fill(0));
   budByKey['__other'] = (budByKey['販売管理費 計'] || Array(12).fill(0)).map((v,i) => Math.max(0, v - mainSGA_bud[i]));
-
+  /* fcByKey['__other'] も補完（締め月以降のFC表示用）*/
   const mainSGA_fc = OTHER_SGA_EXCL.reduce((acc, k) => {
     if (fcByKey[k]) acc = acc.map((v,i) => v + fcByKey[k][i]);
     return acc;
   }, Array(12).fill(0));
+  fcByKey['__other'] = (fcByKey['販売管理費 計'] || budByKey['販売管理費 計'] || Array(12).fill(0)).map((v,i) => Math.max(0, v - mainSGA_fc[i]));
+
+  
   fcByKey['__other'] = (fcByKey['販売管理費 計'] || Array(12).fill(0)).map((v,i) => Math.max(0, v - mainSGA_fc[i]));
 
   const PL_ROWS_LOCAL = [
@@ -2552,8 +2559,10 @@ function parseBS(sheet) {
       /* SBI行自体の数値列数でフォーマットを判定
          新形式(actual/FC交互): 期首1 + 月12×2 = 最大25数値 → numericCount > 12
          旧形式(月のみ): 期首1 + 月12 = 最大13数値 → numericCount <= 12 */
+      /* None/nullが混在しても列数で新旧判定（actual/FC交互列かどうか）*/
+      const totalCols = row.slice(1).filter(v => v !== null && v !== undefined).length;
       const numericCount = row.slice(1).filter(v => typeof v === 'number').length;
-      const isNewFmt = numericCount > 12;
+      const isNewFmt = numericCount > 12 || totalCols > 13;
       console.log('[parseBS] SBI行 数値列数:', numericCount, '→ isNewFmt:', isNewFmt);
       if (isNewFmt) { for(let m=0;m<12;m++){ cashAct[m]=num(row[2+m*2]); cashFC[m]=num(row[3+m*2]); } }
       else { for(let m=0;m<12;m++){ cashAct[m]=num(row[2+m]); cashFC[m]=num(row[2+m]); } }
