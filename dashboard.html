@@ -1693,7 +1693,7 @@ function renderGantt() {
   members.forEach(m=>{ const tot=m.dailyH.slice(0,daysInMonth).reduce((s,v)=>s+(v||0),0); html+=`<tr><td class="g-name">${m.name}</td>`; dayInfos.forEach((di,i)=>{ const h=m.dailyH[i]||0; const {bg,fg}=cellStyle(h,di.type); html+=`<td style="background:${bg};color:${fg};border:1px solid #D1D5DB">${h>0?h:''}</td>`; }); html+=`<td class="g-total">${tot}H</td></tr>`; });
   html+=`<tr><td class="g-name" style="color:var(--muted);font-size:10px">日計（全員）</td>`;
   let grand=0;
-  dayInfos.forEach((di,i)=>{ let s=0; members.forEach(m=>{ s+=m.dailyH[i]||0; }); grand+=s; const bg=di.type==='hol'?'#FEF6E0':di.type==='we'?'#E8EBF4':(s>=10?'#D8ECD8':'#F9FAFD'); const fg=di.type!=='wd'?'#9CA3AF':(s>=10?'#1E7D4A':'#374151'); html+=`<td style="background:${bg};color:${fg};border:1px solid #D1D5DB;font-weight:700">${s||''}</td>`; });
+  dayInfos.forEach((di,i)=>{ let s=0; members.forEach(m=>{ s+=m.dailyH[i]||0; }); grand+=s; const bg=di.type==='hol'?'#FEF6E0':di.type==='we'?'#E8EBF4':'#F9FAFD'; const fg=di.type!=='wd'?'#9CA3AF':'#374151'; html+=`<td style="background:${bg};color:${fg};border:1px solid #D1D5DB;font-weight:700">${s||''}</td>`; });
   html+=`<td class="g-total">${grand}H</td></tr></tbody>`;
   document.getElementById('ganttTbl').innerHTML=html;
 }
@@ -2154,14 +2154,16 @@ function renderPL1() {
     const bud=budArr?(budArr[singleIdx]||0):0;
     const prevSingle=singleIdx>0?calcMonthVal(singleIdx-1):null;
     const yojitsuDiff=bud!==0?single-bud:null;
-    let yojitsuRate='0.0%'; if(bud!==0) yojitsuRate=(single/Math.abs(bud)*100).toFixed(1)+'%';
+    let yojitsuRateNum=0; if(bud!==0) yojitsuRateNum=single/Math.abs(bud)*100;
+    let yojitsuRate=yojitsuRateNum.toFixed(1)+'%';
     const prevDiff=prevSingle!==null?single-prevSingle:null;
     let prevRate='-'; if(prevSingle!==null&&prevSingle!==0) prevRate=(single/Math.abs(prevSingle)*100).toFixed(1)+'%';
     /* 累計予算・差異 */
     const budCumul=budArr?sumAcross(budArr,idxList):0;
     const yojitsuDiffCumul=budCumul!==0?act-budCumul:null;
-    let yojitsuRateCumul='0.0%'; if(budCumul!==0) yojitsuRateCumul=(act/Math.abs(budCumul)*100).toFixed(1)+'%';
-    return {act,single,bud,budCumul,yojitsuDiff,yojitsuRate,yojitsuDiffCumul,yojitsuRateCumul,prevDiff,prevRate};
+    let yojitsuRateCumulNum=0; if(budCumul!==0) yojitsuRateCumulNum=act/Math.abs(budCumul)*100;
+    let yojitsuRateCumul=yojitsuRateCumulNum.toFixed(1)+'%';
+    return {act,single,bud,budCumul,yojitsuDiff,yojitsuRate,yojitsuRateNum,yojitsuDiffCumul,yojitsuRateCumul,yojitsuRateCumulNum,prevDiff,prevRate};
   }
 
   const numClass=(v,invert)=>{ if(!v||v===0) return ''; const pos=invert?v<0:v>0; return pos?'pos':'neg'; };
@@ -2189,13 +2191,17 @@ function renderPL1() {
     }
     const isExpense=['外注費','交際費','会議費','旅費交通費','__other','販売管理費 計'].includes(row.key);
     const isOther=row.key==='__other';
-    const {act,single,bud,budCumul,yojitsuDiff,yojitsuRate,yojitsuDiffCumul,yojitsuRateCumul,prevDiff,prevRate}=calcRow(row.key,isOther);
+    const {act,single,bud,budCumul,yojitsuDiff,yojitsuRate,yojitsuRateNum,yojitsuDiffCumul,yojitsuRateCumul,yojitsuRateCumulNum,prevDiff,prevRate}=calcRow(row.key,isOther);
     const yjDiffClass=isExpense?numClass(yojitsuDiff,true):numClass(yojitsuDiff,false);
     const pvDiffClass=isExpense?numClass(prevDiff,true):numClass(prevDiff,false);
     const rowClass=row.isSummary?'summary-row':(row.level===1?'sub-row':'');
     const drillKey=row.key;
     const drillBtn=(S.glData)?`<button class="pl1-drillbtn" onclick="openDrill('${drillKey}',${S.plSelMonth})">元帳</button>`:'';
     const yjDiffClassCumul=isExpense?numClass(yojitsuDiffCumul,true):numClass(yojitsuDiffCumul,false);
+    /* 予算比の色判定: 費用項目は100%超で赤、それ以外はマイナスで赤 */
+    const rateColor=(rateNum,isExp)=> isExp ? (rateNum>100?'var(--red)':'var(--navy)') : (rateNum<0?'var(--red)':'var(--navy)');
+    const rateColCumul=rateColor(yojitsuRateCumulNum,isExpense);
+    const rateColSingle=rateColor(yojitsuRateNum,isExpense);
     const labelCell = row.isOtherHead
       ? `<span onclick="togglePL3Other()" style="cursor:pointer;user-select:none">${row.label} ${S.pl3Expand?'▲':'▼'}</span> ${drillBtn}`
       : `${row.label} ${drillBtn}`;
@@ -2205,11 +2211,11 @@ function renderPL1() {
         ? `<td class="num ${act<0?'neg':''}" style="border-left:2px solid var(--border);font-weight:${row.isSummary?700:400}">${FC(act)}</td>
            <td class="num">${FC(budCumul)}</td>
            <td class="num ${yjDiffClassCumul}">${FCD(yojitsuDiffCumul)}</td>
-           <td class="num">${yojitsuRateCumul}</td>`
+           <td class="num" style="color:${rateColCumul}">${yojitsuRateCumul}</td>`
         : `<td class="num ${single<0?'neg':''}" style="border-left:2px solid var(--border);font-weight:${row.isSummary?700:400}">${FC(single)}</td>
            <td class="num">${FC(bud)}</td>
            <td class="num ${yjDiffClass}">${FCD(yojitsuDiff)}</td>
-           <td class="num">${yojitsuRate}</td>
+           <td class="num" style="color:${rateColSingle}">${yojitsuRate}</td>
            <td class="num ${pvDiffClass}">${isPrevYear?'-':prevDiff!==null?FC(prevDiff):'-'}</td>
            <td class="num">${isPrevYear?'-':prevRate}</td>`
       }
