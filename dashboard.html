@@ -95,7 +95,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
 .pipe-unit { font-size:10px; color:var(--muted); width:14px; flex-shrink:0; margin-top:4px; }
 .pipe-total-row { display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:10px; border-top:2px solid var(--navy); }
 .pipe-total-lbl { font-size:12px; font-weight:700; color:var(--navy); }
-.pipe-total-val { font-size:19px; font-weight:700; color:var(--orange); }
+.pipe-total-val { font-size:19px; font-weight:700; color:var(--text); }
 
 /* ── Gap ③ ─────────────────────────────────────────── */
 .sc-item { margin-bottom:10px; }
@@ -219,7 +219,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
 .pl-tbl .pl-name.l1 { padding-left:20px; font-weight:400; color:var(--body); background:var(--white); font-size:10px; }
 .pl-tbl .pl-name.bold { background:#D8E4F0; font-weight:700; }
 .pl-tbl .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.pl-tbl .pos { color:var(--green); font-weight:700; }
+.pl-tbl .pos { color:var(--navy); font-weight:700; }
 .pl-tbl .neg { color:var(--red);   font-weight:700; }
 .pl-tbl tr.sep-row td { border-top:2px solid var(--navy); }
 .pl-tbl tr.bold-row td { background:#EEF2FA; font-weight:700; }
@@ -260,7 +260,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
 .pl1-tbl tr.sub-row td:first-child { padding-left:22px; color:var(--body); }
 .pl1-tbl tr.other-sub-row td:first-child { padding-left:36px; color:var(--muted); font-size:10px; }
 .pl1-tbl td.num { text-align:right; font-variant-numeric:tabular-nums; }
-.pl1-tbl td.pos { color:var(--green); }
+.pl1-tbl td.pos { color:var(--navy); }
 .pl1-tbl td.neg { color:var(--red); }
 .pl1-tbl th:nth-child(2) { background:#243580; border-left:2px solid rgba(255,255,255,.3); }
 .pl1-tbl td:nth-child(2) { border-left:2px solid var(--border); background:#F0F4FF; }
@@ -601,7 +601,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
       <div class="card-body">
         <div class="proj-summary">
           <div class="ps-item"><div class="ps-val" style="color:#1C2D6B" id="ps-proj">--H</div><div class="ps-lbl">固定工数合計</div></div>
-          <div class="ps-item"><div class="ps-val" style="color:#D0480A" id="ps-est">--H</div><div class="ps-lbl">想定工数合計</div></div>
+          <div class="ps-item"><div class="ps-val" style="color:#1C2D6B" id="ps-est">--H</div><div class="ps-lbl">想定工数合計</div></div>
           <div class="ps-item"><div class="ps-val" style="color:#1C2D6B" id="ps-cap">--H</div><div class="ps-lbl">チーム稼働可能時間</div></div>
           <div class="ps-item"><div class="ps-val" id="ps-surplus">--H</div><div class="ps-lbl">余剰キャパシティ</div></div>
           <div class="ps-item"><div class="ps-rate" id="ps-rate" style="font-size:11px;margin-top:0">--</div><div class="ps-rate" id="ps-status" style="margin-top:6px">--</div></div>
@@ -686,7 +686,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
         <div class="kpi-lbl">売上総利益</div>
         <div class="kpi-val" id="plk-gp" style="font-size:17px">--</div>
         <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted)">
-          <span>予算 <span id="plk-gp-bud" style="color:var(--green);font-weight:600">--</span></span>
+          <span>予算 <span id="plk-gp-bud" style="font-weight:600">--</span></span>
           <span>予算比 <span id="plk-gp-rate" style="font-weight:700">--</span></span>
         </div>
         <div class="kpi-bar"><div class="kpi-fill" id="plk-gp-bar" style="width:0%;background:var(--green)"></div></div>
@@ -695,7 +695,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
         <div class="kpi-lbl">営業利益</div>
         <div class="kpi-val" id="plk-op" style="font-size:17px">--</div>
         <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--muted)">
-          <span>予算 <span id="plk-op-bud" style="color:var(--orange);font-weight:600">--</span></span>
+          <span>予算 <span id="plk-op-bud" style="font-weight:600">--</span></span>
           <span>予算比 <span id="plk-op-rate" style="font-weight:700">--</span></span>
         </div>
         <div class="kpi-bar"><div class="kpi-fill" id="plk-op-bar" style="width:0%;background:var(--orange)"></div></div>
@@ -1057,6 +1057,11 @@ function processFile(buf) {
       try { S.yojitsu = parseYojitsuSplit(wb.Sheets['実績'], wb.Sheets['予算']); }
       catch(e) { S.yojitsu = null; console.error('parseYojitsuSplit error:', e); }
     }
+    /* ★ FIX: 実績/予算シートがない場合、PLシートから S.yojitsu を構築するフォールバック */
+    if (!S.yojitsu && wb.Sheets['PL']) {
+      try { S.yojitsu = parseYojitsuFromPL(wb.Sheets['PL']); }
+      catch(e) { console.error('parseYojitsuFromPL error:', e); }
+    }
     /* parsePLSheet は廃止 → S.pl.clientRevenue から直接反映 */
 
     S.bsData  = safeparse(parseBS, wb.Sheets['BS推移']);
@@ -1100,10 +1105,10 @@ function renderKPIs() {
   const setC = (id, col) => { const e=document.getElementById(id); if(e) e.style.color=col; };
   const setW = (id, pct) => { const e=document.getElementById(id); if(e) e.style.width=pct+'%'; };
   set('kv1', F(conf)); setW('kb1', rate); /* 確定売上（締め月以前実績）*/
-  set('kv2', (gap>0?'▲ ':'+') + F(Math.abs(gap))); setC('kv2', gap>0?'#C0392B':'#1E7D4A');
+  set('kv2', (gap>0?'-':'') + F(Math.abs(gap))); setC('kv2', gap>0?'var(--red)':'var(--text)');
   set('kn2', gap>0?'目標未達':'目標超過'); set('kv2r', rate.toFixed(1)+'%'); setW('kb2', Math.min(100, rate));
   set('kv5', F(total)); set('kn5', pipe>0 ? `パイプライン +¥${Math.round(pipe/10000)}万含む` : 'パイプライン未入力'); setW('kb5', rateP);
-  set('kv4', (gapPipe>0?'▲ ':'+') + F(Math.abs(gapPipe))); setC('kv4', gapPipe>0?'#D0480A':'#1E7D4A');
+  set('kv4', (gapPipe>0?'-':'') + F(Math.abs(gapPipe))); setC('kv4', gapPipe>0?'var(--red)':'var(--text)');
   set('kn4', gapPipe>0?'目標未達':'目標超過'); set('kv4r', rateP.toFixed(1)+'%'); setW('kb4', Math.min(100, rateP));
 }
 
@@ -1363,7 +1368,7 @@ function renderPipeSummary() {
   <tr style="background:#1A3070;color:#fff;font-weight:700;border-bottom:2px solid #0d1f50">
     <td colspan="2" style="color:#fff;font-size:11px">月別合計</td>
     ${mTotTop.map((v,i)=>`<td style="text-align:right;font-size:10px">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
-    <td style="text-align:right;color:var(--orange)">${grandTotal>0?grandTotal.toLocaleString('ja-JP'):'-'}</td>
+    <td style="text-align:right;color:var(--navy)">${grandTotal>0?grandTotal.toLocaleString('ja-JP'):'-'}</td>
   </tr>
   <tr style="background:#243580;color:#aac">
     <td colspan="2" style="font-size:10px;padding:3px 8px;color:#cce">└ 固定計</td>
@@ -1425,7 +1430,7 @@ function renderPipeSummary() {
     html+=`<tr style="border-bottom:2px solid var(--border);${rowBg}">
       <td style="font-size:10px;font-weight:700;color:var(--navy);white-space:nowrap">小計</td>
       ${subtotalArr.map(v=>`<td style="font-size:10px;font-weight:600;text-align:right;background:#EEF2FA;color:var(--navy)">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
-      <td style="font-size:11px;font-weight:700;text-align:right;color:var(--orange)">${subtotalTotal>0?F(subtotalTotal):'-'}</td>
+      <td style="font-size:11px;font-weight:700;text-align:right;color:var(--navy)">${subtotalTotal>0?F(subtotalTotal):'-'}</td>
     </tr>`;
   });
 
@@ -1515,7 +1520,7 @@ function renderMemberAlloc(proj, cap, kadou4) {
     const remaining=avail-allocated;
     projects.forEach(k=>memberTotals[k]+=(alloc[k]||0));
     totalAvail+=avail; grandAlloc+=allocated;
-    const remColor=avail===0?'var(--muted)':remaining<0?'#C0392B':remaining===0?'var(--navy)':'#1E7D4A';
+    const remColor=avail===0?'var(--muted)':remaining<0?'var(--red)':'var(--text)';
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:5px 8px;font-weight:600;color:var(--navy);white-space:nowrap">${name}</td>
       ${projects.map(k=>`<td style="padding:3px 6px;text-align:center">
@@ -1531,7 +1536,7 @@ function renderMemberAlloc(proj, cap, kadou4) {
           onchange="if(!S.memberCapacity)S.memberCapacity={};S.memberCapacity['${name}']=parseInt(this.value)||0;refreshProjHours();saveLS()">
       </td>
       <td style="padding:5px 8px;text-align:right;font-weight:700;color:${remColor};background:#EEF2FA">
-        ${avail>0?(remaining>=0?'+':'')+remaining+'H':'—'}
+        ${avail>0?(remaining<0?'-':'')+Math.abs(remaining)+'H':'—'}
       </td>
     </tr>`;
   }).join('');
@@ -1541,10 +1546,10 @@ function renderMemberAlloc(proj, cap, kadou4) {
   foot.innerHTML=`<tr style="background:var(--navy-pale);font-weight:700;border-top:2px solid var(--navy)">
     <td style="padding:5px 8px">チーム合計</td>
     ${projects.map(k=>`<td style="padding:5px 8px;text-align:right;font-size:10px;color:var(--navy)">${memberTotals[k]}H</td>`).join('')}
-    <td style="padding:5px 8px;text-align:right;color:var(--orange)">${grandAlloc}H</td>
+    <td style="padding:5px 8px;text-align:right;color:var(--text)">${grandAlloc}H</td>
     <td style="padding:5px 8px;text-align:right">${totalAvail}H</td>
-    <td style="padding:5px 8px;text-align:right;color:${totalRemaining<0?'#C0392B':'#1E7D4A'}">
-      ${totalAvail>0?(totalRemaining>=0?'+':'')+totalRemaining+'H':'—'}
+    <td style="padding:5px 8px;text-align:right;color:${totalRemaining<0?'var(--red)':'var(--text)'}">
+      ${totalAvail>0?(totalRemaining<0?'-':'')+Math.abs(totalRemaining)+'H':'—'}
     </td>
   </tr>`;
 }
@@ -1595,9 +1600,9 @@ function refreshProjHours() {
   if(el('ps-proj')) el('ps-proj').textContent=totalFixed+'H';
   if(el('ps-est')) el('ps-est').textContent=totalEst+'H';
   if(el('ps-cap')) el('ps-cap').textContent=cap+'H';
-  if(el('ps-surplus')){const s=el('ps-surplus');s.textContent=(surplus>=0?'+':'')+surplus+'H';s.style.color=surplus>=0?'#1E7D4A':'#C0392B';}
+  if(el('ps-surplus')){const s=el('ps-surplus');s.textContent=(surplus<0?'-':'')+Math.abs(surplus)+'H';s.style.color=surplus<0?'var(--red)':'var(--text)';}
   if(el('ps-rate')) el('ps-rate').textContent=`充足率 ${rate}%（固定${totalFixed}H + 想定${totalEst}H ÷ ${cap}H）`;
-  if(el('ps-status')) el('ps-status').innerHTML=surplus<0?`<span style="color:#C0392B">⚠ キャパシティ不足 ${Math.abs(surplus)}H</span>`:`<span style="color:#1E7D4A">◎ 余剰 ${surplus}H</span>`;
+  if(el('ps-status')) el('ps-status').innerHTML=surplus<0?`<span style="color:var(--red)">⚠ キャパシティ不足 ${Math.abs(surplus)}H</span>`:`<span style="color:var(--text)">◎ 余剰 ${surplus}H</span>`;
 
   /* --- チャート（固定・想定・稼働可能内訳 3本）--- */
   if(charts.proj){charts.proj.destroy();charts.proj=null;}
@@ -1777,9 +1782,9 @@ function switchKadou(mode,_synced) {
   const cap=S.kadou?.totalH||0; const proj=getProjInputs(); const totalProj=Object.values(proj).reduce((s,v)=>s+v,0);
   const surplus=cap-totalProj; const rate=cap>0?(totalProj/cap*100).toFixed(1):'0.0';
   document.getElementById('ps-cap').textContent=cap+'H';
-  const sur=document.getElementById('ps-surplus'); sur.textContent=(surplus>=0?'+':'')+surplus+'H'; sur.style.color=surplus>=0?'#1E7D4A':'#C0392B';
+  const sur=document.getElementById('ps-surplus'); sur.textContent=(surplus<0?'-':'')+Math.abs(surplus)+'H'; sur.style.color=surplus<0?'var(--red)':'var(--text)';
   document.getElementById('ps-rate').textContent=`案件充足率 ${rate}%（= ${totalProj}H ÷ ${cap}H）`;
-  document.getElementById('ps-status').innerHTML=surplus<0?`<span style="color:#C0392B">⚠ キャパシティ不足 ${Math.abs(surplus)}H</span>`:`<span style="color:#1E7D4A">◎ キャパシティに不足なし</span><br><span style="color:var(--muted)">余剰 ${surplus}H は営業・社内管理・バッファとして活用可</span>`;
+  document.getElementById('ps-status').innerHTML=surplus<0?`<span style="color:var(--red)">⚠ キャパシティ不足 ${Math.abs(surplus)}H</span>`:`<span style="color:var(--text)">◎ キャパシティに不足なし</span><br><span style="color:var(--muted)">余剰 ${surplus}H は営業・社内管理・バッファとして活用可</span>`;
   saveLS(); requestAnimationFrame(()=>window.scrollTo({top:scrollY,behavior:'instant'}));
 }
 function updateGanttNav() {
@@ -2013,8 +2018,8 @@ function renderPLKPIBoxes() {
   defs.forEach(({id,key})=>{
     const a=act(key),b=bud(key),r=rate(a,b);
     const vEl=document.getElementById(`plk-${id}`),bEl=document.getElementById(`plk-${id}-bud`),rEl=document.getElementById(`plk-${id}-rate`),barEl=document.getElementById(`plk-${id}-bar`);
-    if(vEl){vEl.textContent=F(a);vEl.style.color=a<0?'var(--red)':'';}
-    if(bEl)bEl.textContent=b?F(b):'-';
+    if(vEl){vEl.textContent=(a<0?'-':'')+F(a);vEl.style.color=a<0?'var(--red)':'var(--text)';}
+    if(bEl){bEl.textContent=b?(b<0?'-':'')+F(b):'-';bEl.style.color=b<0?'var(--red)':'var(--text)';}
     if(rEl){rEl.textContent=r;rEl.style.color=(b&&a>=b)?'var(--green)':'var(--red)';}
     if(barEl)barEl.style.width=barW(a,b);
   });
@@ -2034,9 +2039,9 @@ function renderPL2KPIs() {
   const avgBurn=burns.length?burns.reduce((s,v)=>s+v,0)/burns.length:0;
   const runway=avgBurn>0?(cash/avgBurn).toFixed(1):'∞';
   const cashEl=document.getElementById('pl2-cash'),burnEl=document.getElementById('pl2-burn'),runEl=document.getElementById('pl2-runway');
-  if(cashEl) cashEl.textContent=F(cash);
-  if(burnEl){ burnEl.textContent=burn<0?'-'+F(Math.abs(burn)):F(burn); burnEl.style.color=burn>0?'var(--red)':burn<0?'var(--green)':'var(--muted)'; }
-  if(runEl){ runEl.textContent=runway==='∞'?'∞ ヶ月':runway+'ヶ月'; runEl.style.color=parseFloat(runway)>6?'var(--green)':parseFloat(runway)>3?'var(--orange)':'var(--red)'; }
+  if(cashEl){ cashEl.textContent=(cash<0?'-':'')+F(cash); cashEl.style.color=cash<0?'var(--red)':'var(--text)'; }
+  if(burnEl){ burnEl.textContent=burn<0?'-'+F(Math.abs(burn)):F(burn); burnEl.style.color=burn>0?'var(--red)':'var(--text)'; }
+  if(runEl){ runEl.textContent=runway==='∞'?'∞ ヶ月':runway+'ヶ月'; runEl.style.color=parseFloat(runway)<0?'var(--red)':'var(--text)'; }
 }
 
 function renderPLDetail() {
@@ -2168,8 +2173,8 @@ function renderPL1() {
       const numer=sumAcross(getPLArr(row.numer),idxList),denom=sumAcross(getPLArr(row.denom),idxList);
       const budNumer=sumAcross(yojitsu.budByKey[row.numer],idxList),budDenom=sumAcross(yojitsu.budByKey[row.denom],idxList);
       const actRate=denom?(numer/denom*100):0,budRate=budDenom?(budNumer/budDenom*100):0;
-      const diff=actRate-budRate, rateCol=actRate>=0?'var(--green)':'var(--red)';
-      const diffCol=diff>=0?'var(--green)':'var(--red)';
+      const diff=actRate-budRate, rateCol=actRate>=0?'var(--navy)':'var(--red)';
+      const diffCol=diff>=0?'var(--navy)':'var(--red)';
       const diffStr=diff===0?'-':(diff>0?'+':'')+diff.toFixed(1)+'pt';
       const ratioStr=budRate!==0?(actRate/budRate*100).toFixed(1)+'%':'-';
       html+=`<tr style="background:#F9FAFD">
@@ -2260,9 +2265,9 @@ function renderPL2() {
   const burns=[]; for(let i=Math.max(0,mi-2);i<=mi;i++){ const bc=bsData.cash[i]-(i>0?bsData.cash[i-1]:0); if(bc<0) burns.push(Math.abs(bc)); }
   const avgBurn=burns.length?burns.reduce((s,v)=>s+v,0)/burns.length:0;
   const runway=avgBurn>0?(cash/avgBurn).toFixed(1):'∞';
-  if(cashEl){ cashEl.textContent=F(cash); cashEl.className='kpi-val'; }
-  if(burnEl){ burnEl.textContent=(burn>=0?'':'+')+ F(-burn); burnEl.style.color=burn>0?'var(--red)':burn<0?'var(--green)':'var(--muted)'; }
-  if(runEl){ runEl.textContent=runway==='∞'?'∞ ヶ月':runway+'ヶ月'; runEl.style.color=parseFloat(runway)>6?'var(--green)':parseFloat(runway)>3?'var(--orange)':'var(--red)'; }
+  if(cashEl){ cashEl.textContent=(cash<0?'-':'')+F(cash); cashEl.className='kpi-val'; cashEl.style.color=cash<0?'var(--red)':'var(--text)'; }
+  if(burnEl){ burnEl.textContent=burn<0?'-'+F(Math.abs(burn)):F(burn); burnEl.style.color=burn>0?'var(--red)':'var(--text)'; }
+  if(runEl){ runEl.textContent=runway==='∞'?'∞ ヶ月':runway+'ヶ月'; runEl.style.color=parseFloat(runway)<0?'var(--red)':'var(--text)'; }
   if(charts.pl2){ charts.pl2.destroy(); charts.pl2=null; }
   const labels=MONTH_NAMES.slice(0,12);
   const cashData=getCash();
@@ -2472,6 +2477,44 @@ function parseYojitsuSplit(actualSheet, budgetSheet) {
   
   fcByKey['__other'] = (fcByKey['販売管理費 計'] || Array(12).fill(0)).map((v,i) => Math.max(0, v - mainSGA_fc[i]));
 
+  /* ★ FIX: fcByKey の合計行を補完
+     予算シートがない場合(fcByKey['営業損益金額'] = 0)、rawByKey の計算式で再構築する。
+     - 売上総損益金額 = 売上高 計 - 販売管理費(原価)
+     - 営業損益金額   = 売上総損益金額 - 販売管理費 計
+     - 経常損益金額   = 営業損益金額 + 営業外収益 - 営業外費用
+     - 当期純損益金額 = 経常損益金額 - 法人税等
+     fcByKey に既に値がある月はそちらを優先 */
+  const _fcFill = (key, computeFn) => {
+    const existing = fcByKey[key] || Array(12).fill(0);
+    const raw = rawByKey[key] || Array(12).fill(0);
+    fcByKey[key] = Array(12).fill(0).map((_, i) => {
+      if (existing[i] !== 0) return existing[i]; // 予算シートの値を優先
+      if (raw[i] !== 0) return raw[i];           // rawの値をFC代わりに使用
+      return computeFn(i);                        // 計算で補完
+    });
+  };
+  const _fc = (key, i) => (fcByKey[key]?.[i] || rawByKey[key]?.[i] || 0);
+  _fcFill('売上総損益金額', i => _fc('売上高 計', i) - _fc('商品売上原価', i));
+  _fcFill('販売管理費 計', i =>
+    (fcByKey['販売管理費 計']?.[i] || 0) ||
+    (budByKey['販売管理費 計']?.[i] || 0) ||
+    (rawByKey['販売管理費 計']?.[i] || 0)
+  );
+  _fcFill('営業損益金額', i => _fc('売上総損益金額', i) - _fc('販売管理費 計', i));
+  _fcFill('経常損益金額', i => _fc('営業損益金額', i) + _fc('営業外収益', i) - _fc('営業外費用', i));
+  _fcFill('当期純損益金額', i => _fc('経常損益金額', i) - _fc('法人税等', i));
+  /* budByKey 合計行も同様に補完（予算比較のため）*/
+  const _budFill = (key, computeFn) => {
+    const existing = budByKey[key] || Array(12).fill(0);
+    if (existing.some(v => v !== 0)) return; // 既に値あればスキップ
+    budByKey[key] = Array(12).fill(0).map((_, i) => computeFn(i));
+  };
+  const _bud = (key, i) => (budByKey[key]?.[i] || fcByKey[key]?.[i] || 0);
+  _budFill('売上総損益金額', i => _bud('売上高 計', i));
+  _budFill('営業損益金額', i => _bud('売上総損益金額', i) - _bud('販売管理費 計', i));
+  _budFill('経常損益金額', i => _bud('営業損益金額', i) + _bud('営業外収益', i) - _bud('営業外費用', i));
+  _budFill('当期純損益金額', i => _bud('経常損益金額', i));
+
   const PL_ROWS_LOCAL = [
     {label:'売上高',       key:'売上高',           level:0, isHeader:false, isSummary:false},
     {label:'売上総損益',   key:'売上総損益金額',    level:0, isSummary:true},
@@ -2480,7 +2523,120 @@ function parseYojitsuSplit(actualSheet, budgetSheet) {
     {label:'　旅費交通費', key:'旅費交通費',         level:1},
     {label:'　会議費',     key:'会議費',            level:1},
     {label:'　交際費',     key:'交際費',            level:1},
-    {label:'　その他経費▼',key:'__other',           level:1, isOtherHead:true},
+    {label:'　その他経費',key:'__other',           level:1, isOtherHead:true},
+    {label:'営業利益',     key:'営業損益金額',       level:0, isSummary:true},
+    {label:'営業利益率',   key:'__op_rate',         level:0, isRate:true, numer:'営業損益金額', denom:'売上高 計'},
+    {label:'営業外収益',   key:'営業外収益',         level:0},
+    {label:'営業外費用',   key:'営業外費用',         level:0},
+    {label:'経常利益',     key:'経常損益金額',       level:0, isSummary:true},
+    {label:'当期純損益',   key:'当期純損益金額',     level:0, isSummary:true},
+    {label:'当期純利益率', key:'__net_rate',        level:0, isRate:true, numer:'当期純損益金額', denom:'売上高 計'},
+  ];
+
+  return { plRows:PL_ROWS_LOCAL, rawByKey, budByKey, fcByKey, otherDetailRows, months:[1,2,3,4,5,6,7,8,9,10,11,12] };
+}
+
+/* PLシートのみの場合のフォールバックパーサー
+   PLシート構造: 行0=日付シリアル列, 列0=ラベル(全角スペース付き), 列1〜12=1月〜12月実績
+   ※ 予算FC値はないため rawByKey をそのまま fcByKey・budByKey にも使用 */
+function parseYojitsuFromPL(sheet) {
+  if (!sheet) return null;
+  const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:true, defval:null});
+  const num = v => (typeof v === 'number' ? v : 0);
+  const rawByKey = {}, budByKey = {}, fcByKey = {};
+
+  // 月データが始まる列を特定（日付シリアル値=40000超 が並ぶ列）
+  let dataStart = 1;
+  for (const row of rows) {
+    if (!row) continue;
+    for (let ci = 1; ci <= 3; ci++) {
+      if (typeof row[ci] === 'number' && row[ci] > 40000) { dataStart = ci; break; }
+    }
+    if (dataStart > 1) break;
+  }
+
+  rows.forEach(row => {
+    if (!row) return;
+    // ラベルは col0〜col2 で検索
+    let lbl = null;
+    for (let ci = 0; ci <= 2; ci++) {
+      if (row[ci] && typeof row[ci] === 'string') {
+        const t = row[ci].replace(/^[\s　]+/, '').trim();
+        if (t) { lbl = t; break; }
+      }
+    }
+    if (!lbl) return;
+    // dataStart 列から12ヶ月分取得
+    const act12 = [];
+    for (let m = 0; m < 12; m++) act12.push(num(row[dataStart + m]));
+    rawByKey[lbl] = act12;
+    // 予算FCはrawをそのまま使用（PLシートには予算列がないため）
+    budByKey[lbl] = act12.slice();
+    fcByKey[lbl] = act12.slice();
+  });
+
+  // 売上高 計 が未登録で 売上高 があれば補完
+  if (!rawByKey['売上高 計'] && rawByKey['売上高']) {
+    rawByKey['売上高 計'] = rawByKey['売上高'].slice();
+    budByKey['売上高 計'] = rawByKey['売上高 計'].slice();
+    fcByKey['売上高 計'] = rawByKey['売上高 計'].slice();
+  }
+
+  // 販売管理費 計 を個別行から再計算
+  const SGA_KEYS = ['外注費','交際費','会議費','旅費交通費','通信費','消耗品費',
+    '新聞図書費','諸会費','車両費','地代家賃','租税公課','販売管理費','研修費','支払手数料'];
+  const recompSGA = Array(12).fill(0).map((_, i) => SGA_KEYS.reduce((s,k)=>s+(rawByKey[k]?.[i]||0),0));
+  rawByKey['販売管理費 計'] = recompSGA.map((comp, i) => {
+    const stored = rawByKey['販売管理費 計']?.[i] || 0;
+    return comp > stored ? comp : stored;
+  });
+  budByKey['販売管理費 計'] = rawByKey['販売管理費 計'].slice();
+  fcByKey['販売管理費 計'] = rawByKey['販売管理費 計'].slice();
+
+  // 合計行を計算式で補完（rawがあればそちら優先）
+  const fill = (key, fn) => {
+    const arr = Array(12).fill(0).map((_, i) => rawByKey[key]?.[i] || fn(i));
+    rawByKey[key] = arr; budByKey[key] = arr.slice(); fcByKey[key] = arr.slice();
+  };
+  const r = (key, i) => rawByKey[key]?.[i] || 0;
+  fill('売上総損益金額', i => r('売上高 計', i) - r('商品売上原価', i));
+  fill('営業損益金額',   i => r('売上総損益金額', i) - r('販売管理費 計', i));
+  fill('経常損益金額',   i => r('営業損益金額', i) + r('営業外収益', i) - r('営業外費用', i));
+  fill('当期純損益金額', i => r('経常損益金額', i) - r('法人税等', i));
+
+  // __other (その他経費) の計算
+  const OTHER_SGA_EXCL = ['外注費','旅費交通費','会議費','交際費'];
+  const mainSGA = OTHER_SGA_EXCL.reduce((acc, k) => {
+    if (rawByKey[k]) acc = acc.map((v,i) => v + rawByKey[k][i]);
+    return acc;
+  }, Array(12).fill(0));
+  const sgaTot = rawByKey['販売管理費 計'];
+  const otherSGA = sgaTot.map((v, i) => Math.max(0, v - mainSGA[i]));
+  rawByKey['__other'] = otherSGA;
+  budByKey['__other'] = otherSGA.slice();
+  fcByKey['__other'] = otherSGA.slice();
+
+  const EXCL_LABELS = ['売上高','売上高 計','売上原価','売上総損益金額','販売管理費','販売管理費 計',
+    '営業損益金額','営業外収益','営業外費用','受取利息','経常損益金額',
+    '特別利益','特別損失','税引前当期純損益金額','法人税等','法人税等調整額','当期純損益金額',
+    '繰延資産償却(外)','現預金','商品売上原価','期首商品棚卸','当期商品仕入',
+    '他勘定振替高(商)','期末商品棚卸'];
+  const otherDetailRows = [];
+  Object.keys(rawByKey).forEach(lbl => {
+    if (EXCL_LABELS.includes(lbl) || OTHER_SGA_EXCL.includes(lbl) || lbl === '__other') return;
+    if (rawByKey[lbl].every(v => v === 0)) return;
+    otherDetailRows.push({label:lbl, actual:rawByKey[lbl], budget:budByKey[lbl]||Array(12).fill(0), fc:fcByKey[lbl]||Array(12).fill(0)});
+  });
+
+  const PL_ROWS_LOCAL = [
+    {label:'売上高',       key:'売上高',           level:0, isSummary:false},
+    {label:'売上総損益',   key:'売上総損益金額',    level:0, isSummary:true},
+    {label:'販管費 計',    key:'販売管理費 計',     level:0, isSummary:true},
+    {label:'　外注費',     key:'外注費',            level:1},
+    {label:'　旅費交通費', key:'旅費交通費',         level:1},
+    {label:'　会議費',     key:'会議費',            level:1},
+    {label:'　交際費',     key:'交際費',            level:1},
+    {label:'　その他経費',key:'__other',           level:1, isOtherHead:true},
     {label:'営業利益',     key:'営業損益金額',       level:0, isSummary:true},
     {label:'営業利益率',   key:'__op_rate',         level:0, isRate:true, numer:'営業損益金額', denom:'売上高 計'},
     {label:'営業外収益',   key:'営業外収益',         level:0},
@@ -2506,7 +2662,7 @@ function parseYojitsu(sheet) {
     {label:'　旅費交通費', key:'旅費交通費', level:1},
     {label:'　会議費', key:'会議費', level:1},
     {label:'　交際費', key:'交際費', level:1},
-    {label:'　その他経費▼', key:'__other', level:1, isOtherHead:true},
+    {label:'　その他経費', key:'__other', level:1, isOtherHead:true},
     {label:'営業利益', key:'営業損益金額', level:0, isSummary:true},
     {label:'営業利益率', key:'__op_rate', level:0, isRate:true, numer:'営業損益金額', denom:'売上高 計'},
     {label:'経常利益', key:'経常損益金額', level:0, isSummary:true},
