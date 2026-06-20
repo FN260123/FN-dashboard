@@ -2020,7 +2020,7 @@ function renderPLKPIBoxes() {
     const vEl=document.getElementById(`plk-${id}`),bEl=document.getElementById(`plk-${id}-bud`),rEl=document.getElementById(`plk-${id}-rate`),barEl=document.getElementById(`plk-${id}-bar`);
     if(vEl){vEl.textContent=(a<0?'-':'')+F(a);vEl.style.color=a<0?'var(--red)':'var(--text)';}
     if(bEl){bEl.textContent=b?(b<0?'-':'')+F(b):'-';bEl.style.color=b<0?'var(--red)':'var(--text)';}
-    if(rEl){rEl.textContent=r;rEl.style.color=(b&&a>=b)?'var(--green)':'var(--red)';}
+    if(rEl){rEl.textContent=r;rEl.style.color=(b&&a<b)?'var(--red)':'var(--text)';}
     if(barEl)barEl.style.width=barW(a,b);
   });
 }
@@ -2169,6 +2169,8 @@ function renderPL1() {
   const numClass=(v,invert)=>{ if(!v||v===0) return ''; const pos=invert?v<0:v>0; return pos?'pos':'neg'; };
   const FCD=v=>{ if(v===null||v===undefined) return '0'; return v===0?'0':Math.round(v).toLocaleString('ja-JP'); };
   const FC=v=>{ if(v===null||v===undefined) return '-'; if(v===0) return '0'; return Math.round(v).toLocaleString('ja-JP'); };
+  /* 予算比の色判定: 費用項目は100%超で赤、それ以外はマイナスで赤 */
+  const rateColor=(rateNum,isExp)=> isExp ? (rateNum>100?'var(--red)':'var(--navy)') : (rateNum<0?'var(--red)':'var(--navy)');
 
   yojitsu.plRows.forEach(row=>{
     if (row.isRate) {
@@ -2178,13 +2180,15 @@ function renderPL1() {
       const diff=actRate-budRate, rateCol=actRate>=0?'var(--navy)':'var(--red)';
       const diffCol=diff>=0?'var(--navy)':'var(--red)';
       const diffStr=diff===0?'-':(diff>0?'+':'')+diff.toFixed(1)+'pt';
-      const ratioStr=budRate!==0?(actRate/budRate*100).toFixed(1)+'%':'-';
+      const ratioNum=budRate!==0?(actRate/budRate*100):0;
+      const ratioStr=budRate!==0?ratioNum.toFixed(1)+'%':'-';
+      const ratioCol=rateColor(ratioNum,false);
       html+=`<tr style="background:#F9FAFD">
         <td style="padding-left:16px;color:var(--muted);font-size:10px">${row.label}</td>
         <td class="num" style="font-weight:600;font-size:10px;color:${rateCol};border-left:2px solid var(--border)">${actRate.toFixed(1)}%</td>
         <td class="num" style="font-size:10px;color:var(--muted)">${budRate.toFixed(1)}%</td>
         <td class="num" style="font-size:10px;color:${diffCol}">${diffStr}</td>
-        <td class="num" style="font-size:10px">${ratioStr}</td>
+        <td class="num" style="font-size:10px;color:${budRate!==0?ratioCol:'inherit'}">${ratioStr}</td>
         ${isCumul?'':`<td class="num" style="font-size:10px;color:var(--muted)">-</td>`}
       </tr>`;
       return;
@@ -2198,8 +2202,6 @@ function renderPL1() {
     const drillKey=row.key;
     const drillBtn=(S.glData)?`<button class="pl1-drillbtn" onclick="openDrill('${drillKey}',${S.plSelMonth})">元帳</button>`:'';
     const yjDiffClassCumul=isExpense?numClass(yojitsuDiffCumul,true):numClass(yojitsuDiffCumul,false);
-    /* 予算比の色判定: 費用項目は100%超で赤、それ以外はマイナスで赤 */
-    const rateColor=(rateNum,isExp)=> isExp ? (rateNum>100?'var(--red)':'var(--navy)') : (rateNum<0?'var(--red)':'var(--navy)');
     const rateColCumul=rateColor(yojitsuRateCumulNum,isExpense);
     const rateColSingle=rateColor(yojitsuRateNum,isExpense);
     const labelCell = row.isOtherHead
@@ -2234,20 +2236,25 @@ function renderPL1() {
         const dBudSingle=dr.budget[singleIdx]||0;
         const dBudCumul=sumAcross(dr.budget,idxList);
         const dYjDiffCumul=dBudCumul!==0?dActVal-dBudCumul:null;
-        const dYjRateCumul=dBudCumul!==0?(dActVal/Math.abs(dBudCumul)*100).toFixed(1)+'%':'0.0%';
+        const dYjRateCumulNum=dBudCumul!==0?(dActVal/Math.abs(dBudCumul)*100):0;
+        const dYjRateCumul=dBudCumul!==0?dYjRateCumulNum.toFixed(1)+'%':'0.0%';
         const dYjDiffSingle=dBudSingle!==0?dSingle-dBudSingle:null;
-        const dYjRateSingle=dBudSingle!==0?(dSingle/Math.abs(dBudSingle)*100).toFixed(1)+'%':'-';
+        const dYjRateSingleNum=dBudSingle!==0?(dSingle/Math.abs(dBudSingle)*100):0;
+        const dYjRateSingle=dBudSingle!==0?dYjRateSingleNum.toFixed(1)+'%':'-';
+        /* その他経費の明細行も費用項目ルール（100%超で赤）で統一 */
+        const dRateColCumul=rateColor(dYjRateCumulNum,true);
+        const dRateColSingle=rateColor(dYjRateSingleNum,true);
         html+=`<tr class="other-sub-row">
           <td>${dr.label} ${dBtn}</td>
           ${isCumul
             ? `<td class="num" style="border-left:2px solid var(--border)">${FC(dActVal)}</td>
                <td class="num">${FC(dBudCumul)}</td>
                <td class="num ${numClass(dYjDiffCumul,true)}">${FCD(dYjDiffCumul)}</td>
-               <td class="num">${dYjRateCumul}</td>`
+               <td class="num" style="color:${dRateColCumul}">${dYjRateCumul}</td>`
             : `<td class="num" style="border-left:2px solid var(--border)">${FC(dSingle)}</td>
                <td class="num">${FC(dBudSingle)}</td>
                <td class="num ${numClass(dYjDiffSingle,true)}">${FCD(dYjDiffSingle)}</td>
-               <td class="num">${dYjRateSingle}</td>
+               <td class="num" style="color:${dRateColSingle}">${dYjRateSingle}</td>
                <td class="num ${numClass(dPvDiff,true)}">${isPrevYear?'-':FCD(dPvDiff)}</td>
                <td class="num">${isPrevYear?'-':dPvRate}</td>`
           }
