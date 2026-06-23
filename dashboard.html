@@ -319,8 +319,15 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   font-family:inherit; cursor:pointer;
 }
 
+/* デスクトップではタブ行ラッパーを透過（直接 flex 子として扱う） */
+.tab-btn-row  { display:contents; }
+.tab-controls { display:contents; }
+
 /* ── Responsive（スマホ対応） ────────────────────────────── */
 @media (max-width: 768px) {
+  /* ページ横はみ出し防止 */
+  body { overflow-x:hidden; }
+
   /* Header */
   .hdr { padding:10px 12px; flex-wrap:wrap; gap:6px; }
   .hdr-title { font-size:13px; }
@@ -345,18 +352,30 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
     margin:0 20px;
   }
 
-  /* Tab bar: 横スクロール */
+  /* ── タブバー: 2行レイアウト ── */
   .tab-bar {
-    overflow-x:auto; flex-wrap:nowrap;
-    padding:6px 10px 0; gap:4px;
-    -webkit-overflow-scrolling:touch;
+    flex-direction:column;
+    align-items:stretch;
+    overflow-x:visible;
+    padding:0;
+    gap:0;
   }
-  .tab-bar::-webkit-scrollbar { display:none; }
-  .tab-btn { min-width:80px; font-size:11px; padding:6px 8px 10px; }
-
-  /* 締め月・ログアウトを auto margin なしで連続配置 */
-  .tab-extra { margin-left:8px !important; padding:2px 0; }
-  .tab-logout { margin-left:4px !important; margin-right:8px !important; padding:4px 10px; font-size:11px; }
+  /* 1行目: タブボタン（横スクロール） */
+  .tab-btn-row {
+    display:flex; overflow-x:auto; flex-wrap:nowrap;
+    -webkit-overflow-scrolling:touch;
+    gap:4px; padding:6px 10px 0; align-items:stretch;
+  }
+  .tab-btn-row::-webkit-scrollbar { display:none; }
+  .tab-btn { min-width:80px; font-size:11px; padding:6px 10px 10px; flex-shrink:0; }
+  /* 2行目: 締め月 ＋ ログアウト */
+  .tab-controls {
+    display:flex; align-items:center; gap:6px;
+    padding:5px 10px; border-top:1px solid var(--border);
+    background:var(--bg);
+  }
+  .tab-extra { margin-left:0 !important; flex-shrink:0; }
+  .tab-logout { margin-left:auto !important; margin-right:0 !important; flex-shrink:0; padding:4px 10px; font-size:11px; }
 
   /* Wrap */
   .wrap { padding:8px 10px; gap:8px; }
@@ -372,9 +391,15 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   /* カードヘッダー */
   .card-hdr { flex-wrap:wrap; gap:5px; }
 
+  /* ① P/Lサマリー表の横スクロール */
+  #pl1-tbl { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
   /* パイプライン入力 */
   .pipe-inp { width:76px; }
   .pm-inp { width:42px !important; font-size:10px; }
+
+  /* ② パイプライン月別詳細 */
+  #pipe-detail-panel { max-width:100%; box-sizing:border-box; }
 
   /* 案件工数入力 */
   .proj-inp { width:52px; }
@@ -386,6 +411,21 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   .gantt-outer,
   #pl3-outer,
   #kosuu-member-tbl { -webkit-overflow-scrolling:touch; }
+
+  /* ⑤ メンバー別工数表：メンバー列スティッキー */
+  #kosuu-member-tbl th:first-child {
+    position:sticky; left:0; z-index:3;
+    background:var(--navy);
+  }
+  #kosuu-member-tbl tbody td:first-child {
+    position:sticky; left:0; z-index:2;
+    background:#fff; border-right:2px solid var(--border);
+    white-space:nowrap;
+  }
+  #kosuu-member-tbl tfoot td:first-child {
+    position:sticky; left:0; z-index:2;
+    background:var(--navy-pale); border-right:2px solid var(--border);
+  }
 }
 </style>
 </head>
@@ -545,9 +585,12 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
 
   <!-- ══ Tab Bar ════════════════════════════════════════ -->
   <div class="tab-bar">
-    <button type="button" class="tab-btn active" id="tab-pl"     onclick="switchPage('pl')">📊 PL詳細</button>
-    <button type="button" class="tab-btn"        id="tab-keiei" onclick="switchPage('keiei')">🎯 営業・稼働管理</button>
-    <button type="button" class="tab-btn"        id="tab-kosuu" onclick="switchPage('kosuu')">⏱ 工数管理</button>
+    <div class="tab-btn-row">
+      <button type="button" class="tab-btn active" id="tab-pl"     onclick="switchPage('pl')">📊 PL詳細</button>
+      <button type="button" class="tab-btn"        id="tab-keiei" onclick="switchPage('keiei')">🎯 営業・稼働管理</button>
+      <button type="button" class="tab-btn"        id="tab-kosuu" onclick="switchPage('kosuu')">⏱ 工数管理</button>
+    </div>
+    <div class="tab-controls">
     <div class="tab-extra" style="display:flex;align-items:center;gap:6px;margin-left:auto;margin-right:8px;flex-shrink:0">
       <span style="font-size:10px;color:#1A3988;font-weight:600;white-space:nowrap">📅 締め月</span>
       <select class="closing-month-sel" onchange="setLastClosedMonth(this.value)"
@@ -574,6 +617,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
       </svg>
       ログアウト
     </button>
+    </div><!-- /tab-controls -->
   </div>
 
   <!-- ══ 経営ページ ══════════════════════════════════════ -->
@@ -847,9 +891,9 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
         <span class="card-title">月次P/L推移 ＋ 現預金（セルクリック→④ドリルスルー）</span>
       </div>
       <div class="card-body" style="padding:0">
+        <div id="pl3-mode-btns" style="display:flex;gap:6px;padding:8px 10px 4px"></div>
         <div style="overflow-x:auto" id="pl3-outer">
-          <div id="pl3-mode-btns" style="display:flex;gap:6px;margin-bottom:8px"></div>
-        <div id="pl3-tbl"></div>
+          <div id="pl3-tbl"></div>
         </div>
       </div>
     </div>
