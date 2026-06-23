@@ -407,6 +407,17 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   /* ② パイプライン月別詳細 */
   #pipe-detail-panel { max-width:100%; box-sizing:border-box; }
 
+  /* ④ 案件別工数：KPIサマリーを2列折り返しに */
+  .proj-summary { flex-wrap:wrap; }
+  .ps-item { flex:0 0 calc(50% - 1px); min-width:0; padding:8px 10px; }
+  .ps-item:last-child { flex:0 0 100%; border-top:1px solid var(--border); }
+  .ps-val { font-size:18px; }
+  .ps-lbl, .ps-rate { word-break:keep-all; overflow-wrap:break-word; }
+
+  /* ④ 案件別工数テーブル：ヘッダーを折り返さず単語単位で */
+  #kosuu-proj-tbl th { white-space:nowrap; font-size:10px; padding:5px 6px; }
+  #kosuu-proj-tbl td:first-child { word-break:keep-all; overflow-wrap:break-word; }
+
   /* 案件工数入力 */
   .proj-inp { width:52px; }
 
@@ -1479,23 +1490,23 @@ function renderPipeSummary() {
   const varGrand   = mVar.reduce((s,v)=>s+v, 0);
 
   html += `<tr style="background:var(--navy);color:#fff;font-weight:700">
-    <th style="min-width:100px">案件</th>
+    <th style="min-width:100px;position:sticky;left:0;z-index:3;background:var(--navy);text-align:left">案件</th>
     <th style="min-width:50px">種別</th>
     ${mnths.map((m,mi)=>`<th style="min-width:60px">${m}</th>`).join('')}
     <th style="min-width:70px">合計</th>
   </tr>
   <tr style="background:#1A3070;color:#fff;font-weight:700;border-bottom:2px solid #0d1f50">
-    <td colspan="2" style="color:#fff;font-size:11px">月別合計</td>
+    <td colspan="2" style="color:#fff;font-size:11px;position:sticky;left:0;z-index:2;background:#1A3070">月別合計</td>
     ${mTotTop.map((v,i)=>`<td style="text-align:right;font-size:10px">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
     <td style="text-align:right;color:var(--navy)">${grandTotal>0?grandTotal.toLocaleString('ja-JP'):'-'}</td>
   </tr>
   <tr style="background:#243580;color:#aac">
-    <td colspan="2" style="font-size:10px;padding:3px 8px;color:#cce">└ 固定計</td>
+    <td colspan="2" style="font-size:10px;padding:3px 8px;color:#cce;position:sticky;left:0;z-index:2;background:#243580">└ 固定計</td>
     ${mFixed.map(v=>`<td style="text-align:right;font-size:10px">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
     <td style="text-align:right;font-size:10px;color:#cce">${fixedGrand>0?fixedGrand.toLocaleString('ja-JP'):'-'}</td>
   </tr>
   <tr style="background:#2d4090;color:#aac;border-bottom:3px solid #1A3070">
-    <td colspan="2" style="font-size:10px;padding:3px 8px;color:#cce">└ 変動計</td>
+    <td colspan="2" style="font-size:10px;padding:3px 8px;color:#cce;position:sticky;left:0;z-index:2;background:#2d4090">└ 変動計</td>
     ${mVar.map(v=>`<td style="text-align:right;font-size:10px">${v>0?v.toLocaleString('ja-JP'):'-'}</td>`).join('')}
     <td style="text-align:right;font-size:10px;color:#cce">${varGrand>0?varGrand.toLocaleString('ja-JP'):'-'}</td>
   </tr>`;
@@ -1521,7 +1532,7 @@ function renderPipeSummary() {
 
     /* 固定行 */
     html+=`<tr style="${rowBg}">
-      <td rowspan="3" style="color:${c.color};font-weight:700;font-size:11px;border-right:2px solid var(--border);vertical-align:middle;text-align:center">
+      <td rowspan="3" style="color:${c.color};font-weight:700;font-size:11px;border-right:2px solid var(--border);vertical-align:middle;text-align:center;position:sticky;left:0;z-index:2;background:${cIdx%2===0?'#fff':'#FAFBFD'}">
         <div>${c.name.length>10?c.name.slice(0,10)+'…':c.name}</div>
         <button onclick="removePipeCompany('${c.key}')"
           style="margin-top:4px;font-size:9px;background:#FEF2F2;border:1px solid #FECACA;color:#DC2626;border-radius:3px;cursor:pointer;padding:1px 6px;font-family:inherit;display:block;width:100%">削除</button>
@@ -2453,7 +2464,7 @@ function renderPL3() {
   };
   addRow('売上高','売上高','pl3-header',false,getPLArr('売上高'),true);
   addRow('売上総損益','売上総損益金額','pl3-summary',false,getPLArr('売上総損益金額'),false);
-  tbl+=`<tr class="pl3-row pl3-header"><td colspan="13">販売管理費</td></tr>`;
+  tbl+=`<tr class="pl3-row pl3-header"><td>販売管理費</td>${'<td></td>'.repeat(12)}</tr>`;
   ['外注費','旅費交通費','会議費','交際費'].forEach(k=>{ addRow('　'+k,k,'pl3-sub',false,getPLArr(k),true); }); /* ★ getPLArr: 締め月で実績/FC切替 */
   addRow('　その他経費','__other','pl3-other-head',true,getPLArr('__other'),true);
   if (S.pl3Expand) {
