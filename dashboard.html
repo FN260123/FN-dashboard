@@ -18,7 +18,7 @@
   --shadow: 0 1px 4px rgba(28,45,107,.10);
 }
 * { box-sizing:border-box; margin:0; padding:0; }
-body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu Gothic','Meiryo',sans-serif; font-size:12px; min-width:1000px; }
+body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu Gothic','Meiryo',sans-serif; font-size:12px; min-width:320px; }
 
 /* ── Upload Overlay ────────────────────────────────── */
 #uploadOverlay {
@@ -318,6 +318,52 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   border-radius:4px; background:#fff; color:var(--navy);
   font-family:inherit; cursor:pointer;
 }
+
+/* ── Responsive（スマホ対応） ────────────────────────────── */
+@media (max-width: 768px) {
+  /* Header */
+  .hdr { padding:10px 12px; flex-wrap:wrap; gap:6px; }
+  .hdr-title { font-size:13px; }
+  .hdr-sub { display:none; }
+  .hdr-right { width:100%; justify-content:flex-end; }
+  .btn-reload { font-size:10px; padding:4px 10px; }
+
+  /* Tab bar: 横スクロール */
+  .tab-bar {
+    overflow-x:auto; flex-wrap:nowrap;
+    padding:6px 10px 0; gap:4px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .tab-bar::-webkit-scrollbar { display:none; }
+  .tab-btn { min-width:88px; font-size:11px; padding:6px 10px 10px; }
+
+  /* Wrap */
+  .wrap { padding:8px 10px; gap:8px; }
+
+  /* KPI グリッド */
+  .kpi-row { grid-template-columns:repeat(2,1fr); }
+  .row-3-2 { grid-template-columns:1fr; }
+  .grid-2col { grid-template-columns:1fr !important; }
+  .kpi { min-width:0 !important; }
+
+  /* カードヘッダー */
+  .card-hdr { flex-wrap:wrap; gap:5px; }
+
+  /* パイプライン入力 */
+  .pipe-inp { width:76px; }
+  .pm-inp { width:42px !important; font-size:10px; }
+
+  /* 案件工数入力 */
+  .proj-inp { width:52px; }
+
+  /* ガント凡例 */
+  .gantt-legend { gap:8px; }
+
+  /* スマホ用スクロール補助 */
+  .gantt-outer,
+  #pl3-outer,
+  #kosuu-member-tbl { -webkit-overflow-scrolling:touch; }
+}
 </style>
 </head>
 <body>
@@ -393,7 +439,10 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
       const screen = document.getElementById('loginScreen');
       screen.style.transition = 'opacity .3s';
       screen.style.opacity = '0';
-      setTimeout(() => screen.remove(), 300);
+      setTimeout(() => {
+        screen.remove();
+        if (typeof showDash === 'function') showDash();
+      }, 300);
     } else {
       err.style.display = 'block';
       document.getElementById('loginPw').value = '';
@@ -405,7 +454,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   };
   window.doLogout = function() {
     sessionStorage.removeItem(SESSION_KEY);
-    localStorage.clear();
+    localStorage.removeItem(LS_KEY);
     location.reload();
   };
   window.togglePw = function() {
@@ -507,7 +556,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   <!-- ══ 経営ページ ══════════════════════════════════════ -->
   <div id="page-keiei" style="display:none">
   <div class="wrap">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="grid-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:var(--navy-pale);border-radius:8px;padding:10px;border:1px solid var(--border)">
         <div style="font-size:9px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.8px;grid-column:1/-1;margin-bottom:2px">
           📊 確定売上
@@ -677,10 +726,8 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   <div id="page-pl">
   <div class="wrap">
 
-    <!-- 最終締め月セレクター -->
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--navy-pale);border-radius:6px;border:1px solid var(--border);flex-wrap:wrap">
-      
-      </div>
+    <!-- KPIカード群 -->
+    <div style="display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px">
       <div class="kpi" style="--kc:#1E7D4A;flex:1;min-width:180px">
         <div class="kpi-lbl">売上総利益</div>
@@ -721,7 +768,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
     </div>
 
     <!-- ① PL表 ＋ ② Runwayチャート -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+    <div class="grid-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div class="card">
         <div class="card-hdr">
           <span class="card-badge">①</span>
@@ -817,7 +864,6 @@ const TGT    = 10000000;
 const LS_KEY = 'fn_dashboard_v22'; /* v22: 変動データリセット */ // v20: burnData/parseBS修正（v21と同キー、キャッシュ継続）
 const F      = v => '¥' + Math.abs(Math.round(v)).toLocaleString('ja-JP');
 const Pct    = (v,t) => Math.min(100, Math.max(0, v / t * 100));
-const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 const PIPE_COLORS = ['#1C2D6B','#4A85C8','#F0A000','#D0480A','#1E7D4A'];
 const MEMBERS = ['近藤','栄井','杉浦','原','左座'];
 
@@ -1117,7 +1163,7 @@ function renderRevChart() {
   const { pl, kadou } = S;
   const actMonth = kadou ? kadou.month : 5;
   const rev = pl.revenue;
-  const labels = pl.months.map(m => MONTHS[m-1]);
+  const labels = pl.months.map(m => MONTH_NAMES[m-1]);
   const cum = rev.reduce((a,v,i)=>{ a.push((a[i-1]||0)+v); return a; },[]);
   charts.rev = new Chart(document.getElementById('revChart'), {
     data: { labels,
@@ -1201,7 +1247,6 @@ function getPipeMonthlyTotal() {
   });
   return arr;
 }
-function getPipeHoursTotal() { const total=Array(12).fill(0); const byClient={}; PIPE_CLIENTS.forEach(c => { const d=S.pipeData[c.key]; byClient[c.key]=d?[...d.hours]:Array(12).fill(0); if(d) d.hours.forEach((v,i)=>{ total[i]+=v; }); }); return { total, byClient }; }
 
 
 /* 会社追加 */
@@ -1464,7 +1509,6 @@ function onPmInpChange(el) {
   renderPipeSummary();
   onPipeChange();
 }
-function renderPipeTotRow() { /* replaced by renderPipeSummary */ }
 function syncPipeToProj() { refreshProjHours(); } /* 工数管理は④パネルで直接入力 */
 function renderPipelineInputs() {
   /* 変動データはダッシュボード上での手入力のみ（Excelからの自動配分なし）*/
@@ -1989,7 +2033,7 @@ function selectPLPeriod(period) {
 function updatePLBadge() {
   const badge=document.getElementById('pl-selected-month-badge'); if(!badge) return;
   if (S.plSelPeriod) badge.textContent=`2026年 ${S.plSelPeriod}`;
-  else badge.textContent=`2026年 1〜${S.plSelMonth}月累計`;
+  else badge.textContent=`2026年 1〜${S.plSelMonth ?? 1}月累計`;
 }
 
 function renderPLKPIBoxes() {
@@ -2487,9 +2531,6 @@ function parseYojitsuSplit(actualSheet, budgetSheet) {
   }, Array(12).fill(0));
   fcByKey['__other'] = (fcByKey['販売管理費 計'] || budByKey['販売管理費 計'] || Array(12).fill(0)).map((v,i) => Math.max(0, v - mainSGA_fc[i]));
 
-  
-  fcByKey['__other'] = (fcByKey['販売管理費 計'] || Array(12).fill(0)).map((v,i) => Math.max(0, v - mainSGA_fc[i]));
-
   /* ★ FIX: fcByKey の合計行を補完
      予算シートがない場合(fcByKey['営業損益金額'] = 0)、rawByKey の計算式で再構築する。
      - 売上総損益金額 = 売上高 計 - 販売管理費(原価)
@@ -2732,10 +2773,8 @@ function parseBS(sheet) {
       const totalCols = row.slice(1).filter(v => v !== null && v !== undefined).length;
       const numericCount = row.slice(1).filter(v => typeof v === 'number').length;
       const isNewFmt = numericCount > 12 || totalCols > 13;
-      console.log('[parseBS] SBI行 数値列数:', numericCount, '→ isNewFmt:', isNewFmt);
       if (isNewFmt) { for(let m=0;m<12;m++){ cashAct[m]=num(row[2+m*2]); cashFC[m]=num(row[3+m*2]); } }
       else { for(let m=0;m<12;m++){ cashAct[m]=num(row[2+m]); cashFC[m]=num(row[2+m]); } }
-      console.log('[parseBS] cashAct:', cashAct, 'cashFC:', cashFC);
     }
   });
   return { cash:cashAct, cashFC };
