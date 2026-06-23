@@ -328,6 +328,23 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   .hdr-right { width:100%; justify-content:flex-end; }
   .btn-reload { font-size:10px; padding:4px 10px; }
 
+  /* Upload overlay */
+  #uploadOverlay { gap:16px; padding:20px 16px; }
+  .dropzone {
+    width:calc(100vw - 40px); max-width:480px;
+    padding:36px 20px;
+  }
+  .ov-brand { font-size:16px; }
+  .dropzone .dz-icon { font-size:36px; margin-bottom:8px; }
+  .dropzone .dz-title { font-size:15px; }
+
+  /* Login card */
+  .login-card {
+    padding:36px 24px 28px !important;
+    width:calc(100% - 40px) !important;
+    margin:0 20px;
+  }
+
   /* Tab bar: 横スクロール */
   .tab-bar {
     overflow-x:auto; flex-wrap:nowrap;
@@ -335,7 +352,11 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
     -webkit-overflow-scrolling:touch;
   }
   .tab-bar::-webkit-scrollbar { display:none; }
-  .tab-btn { min-width:88px; font-size:11px; padding:6px 10px 10px; }
+  .tab-btn { min-width:80px; font-size:11px; padding:6px 8px 10px; }
+
+  /* 締め月・ログアウトを auto margin なしで連続配置 */
+  .tab-extra { margin-left:8px !important; padding:2px 0; }
+  .tab-logout { margin-left:4px !important; margin-right:8px !important; padding:4px 10px; font-size:11px; }
 
   /* Wrap */
   .wrap { padding:8px 10px; gap:8px; }
@@ -345,6 +366,8 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   .row-3-2 { grid-template-columns:1fr; }
   .grid-2col { grid-template-columns:1fr !important; }
   .kpi { min-width:0 !important; }
+  /* PL KPI flex行：inline min-width を上書き → 2列折り返し */
+  .kpi[style*="min-width"] { min-width:calc(50% - 6px) !important; }
 
   /* カードヘッダー */
   .card-hdr { flex-wrap:wrap; gap:5px; }
@@ -374,7 +397,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   background:linear-gradient(135deg,#1A3988 0%,#4A7BFF 100%);
   display:flex;align-items:center;justify-content:center;
   font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;">
-  <div style="
+  <div class="login-card" style="
     background:#fff;border-radius:16px;padding:48px 40px 40px;
     width:100%;max-width:380px;box-shadow:0 24px 64px rgba(0,0,0,.45);">
     <div style="text-align:center;margin-bottom:32px;">
@@ -525,7 +548,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
     <button type="button" class="tab-btn active" id="tab-pl"     onclick="switchPage('pl')">📊 PL詳細</button>
     <button type="button" class="tab-btn"        id="tab-keiei" onclick="switchPage('keiei')">🎯 営業・稼働管理</button>
     <button type="button" class="tab-btn"        id="tab-kosuu" onclick="switchPage('kosuu')">⏱ 工数管理</button>
-    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;margin-right:8px;flex-shrink:0">
+    <div class="tab-extra" style="display:flex;align-items:center;gap:6px;margin-left:auto;margin-right:8px;flex-shrink:0">
       <span style="font-size:10px;color:#1A3988;font-weight:600;white-space:nowrap">📅 締め月</span>
       <select class="closing-month-sel" onchange="setLastClosedMonth(this.value)"
         style="font-size:11px;padding:3px 6px;border:1.5px solid #1A3988;border-radius:5px;color:#1A3988;background:#fff;font-family:inherit;cursor:pointer">
@@ -535,7 +558,7 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
         <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
       </select>
     </div>
-    <button onclick="doLogout()" title="ログアウト" style="
+    <button onclick="doLogout()" title="ログアウト" class="tab-logout" style="
       margin-left:auto;margin-right:12px;
       display:flex;align-items:center;gap:6px;
       background:transparent;border:1.5px solid #1A3988;
