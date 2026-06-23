@@ -123,7 +123,8 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
 .gantt { border-collapse:collapse; min-width:100%; font-size:10px; }
 .gantt th { background:var(--navy); color:#fff; padding:3px 2px; text-align:center; border:1px solid var(--navy2); font-weight:600; }
 .gantt td { text-align:center; border:1px solid #D1D5DB; min-width:24px; height:27px; font-weight:600; font-size:10px; }
-.gantt .g-name { font-weight:700; color:var(--navy); background:var(--navy-pale); padding:4px 10px; text-align:left; white-space:nowrap; border-right:2px solid var(--navy); border:1px solid var(--border); font-size:11px; }
+.gantt th:first-child { position:sticky; left:0; z-index:3; text-align:left; }
+.gantt .g-name { font-weight:700; color:var(--navy); background:var(--navy-pale); padding:4px 10px; text-align:left; white-space:nowrap; border-right:2px solid var(--navy); border:1px solid var(--border); font-size:11px; position:sticky; left:0; z-index:2; }
 .gantt .g-total { font-weight:700; color:var(--navy); background:var(--navy-pale); border:1px solid var(--border); }
 .gantt-legend { display:flex; flex-wrap:wrap; gap:14px; margin-top:8px; }
 .leg { display:flex; align-items:center; gap:5px; font-size:10px; color:var(--muted); }
@@ -253,10 +254,13 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
 .pl-month-btn.active { background:var(--navy); color:#fff; border-color:var(--navy); }
 .pl1-tbl { width:100%; border-collapse:collapse; font-size:11px; }
 .pl1-tbl th { background:var(--navy); color:#fff; padding:6px 10px; text-align:right; font-weight:600; font-size:10px; }
-.pl1-tbl th:first-child { text-align:left; }
+.pl1-tbl th:first-child { text-align:left; position:sticky; left:0; z-index:3; background:var(--navy); }
 .pl1-tbl td { padding:5px 10px; border-bottom:1px solid #EFF1F7; }
+.pl1-tbl td:first-child { position:sticky; left:0; z-index:2; background:#fff; border-right:1px solid var(--border); }
 .pl1-tbl tr.header-row td { background:var(--navy-pale); font-weight:700; color:var(--navy); font-size:10px; padding:3px 10px; }
+.pl1-tbl tr.header-row td:first-child { background:var(--navy-pale); }
 .pl1-tbl tr.summary-row td { background:var(--orange-pale); font-weight:700; border-top:2px solid var(--orange); }
+.pl1-tbl tr.summary-row td:first-child { background:var(--orange-pale); }
 .pl1-tbl tr.sub-row td:first-child { padding-left:22px; color:var(--body); }
 .pl1-tbl tr.other-sub-row td:first-child { padding-left:36px; color:var(--muted); font-size:10px; }
 .pl1-tbl td.num { text-align:right; font-variant-numeric:tabular-nums; }
@@ -325,8 +329,10 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
 
 /* ── Responsive（スマホ対応） ────────────────────────────── */
 @media (max-width: 768px) {
-  /* ページ横はみ出し防止 */
-  body { overflow-x:hidden; }
+  /* ページ横はみ出し防止（html にも必須） */
+  html, body { overflow-x:hidden; }
+  /* CSS Grid/Flex アイテムがコンテナ幅を超えて押し広げるのを防止 */
+  .row-3-2 > *, .grid-2col > *, .col-stack > *, .wrap > * { min-width:0; }
 
   /* Header */
   .hdr { padding:10px 12px; flex-wrap:wrap; gap:6px; }
@@ -412,20 +418,21 @@ body { background:var(--bg); color:var(--text); font-family:'Hiragino Sans','Yu 
   #pl3-outer,
   #kosuu-member-tbl { -webkit-overflow-scrolling:touch; }
 
-  /* ⑤ メンバー別工数表：メンバー列スティッキー */
-  #kosuu-member-tbl th:first-child {
-    position:sticky; left:0; z-index:3;
-    background:var(--navy);
-  }
-  #kosuu-member-tbl tbody td:first-child {
-    position:sticky; left:0; z-index:2;
-    background:#fff; border-right:2px solid var(--border);
-    white-space:nowrap;
-  }
-  #kosuu-member-tbl tfoot td:first-child {
-    position:sticky; left:0; z-index:2;
-    background:var(--navy-pale); border-right:2px solid var(--border);
-  }
+}
+
+/* ④ メンバー別工数割当・⑤ メンバー日別稼働時間：メンバー列スティッキー（常時） */
+#kosuu-member-tbl th:first-child {
+  position:sticky; left:0; z-index:3;
+  background:var(--navy);
+}
+#kosuu-member-tbl tbody td:first-child {
+  position:sticky; left:0; z-index:2;
+  background:#fff; border-right:2px solid var(--border);
+  white-space:nowrap;
+}
+#kosuu-member-tbl tfoot td:first-child {
+  position:sticky; left:0; z-index:2;
+  background:var(--navy-pale); border-right:2px solid var(--border);
 }
 </style>
 </head>
