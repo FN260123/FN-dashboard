@@ -1885,8 +1885,7 @@ function init() {
     showDash();
     if (S.projHours) { document.querySelectorAll('.proj-inp').forEach(el=>{ if(S.projHours[el.dataset.proj]!==undefined) el.value=S.projHours[el.dataset.proj]; }); }
     /* ★ 最終締め月セレクターの初期値を復元 */
-    const sel=document.getElementById('pl-last-closed');
-    if (sel && S.lastClosedMonth) sel.value=S.lastClosedMonth;
+    if (S.lastClosedMonth) document.querySelectorAll('.closing-month-sel').forEach(s=>{ s.value=S.lastClosedMonth; });
     setTimeout(()=>{ if(S.pl){ renderAll(); renderPipeSummary(); } else { renderPLDetail(); } }, 0);
   }
 }
@@ -2204,7 +2203,7 @@ function buildMonthButtons() {
 }
 function updateMonthButtonActive() {
   document.querySelectorAll('.pl-month-btn').forEach(btn=>btn.classList.toggle('active',+btn.dataset.m===S.plSelMonth));
-  const badge=document.getElementById('pl-selected-month-badge'); if(badge) badge.textContent=`2026年${S.plSelMonth}月`;
+  const badge=document.getElementById('pl-selected-month-badge'); if(badge) badge.textContent=`2026年${S.plSelMonth ?? 1}月`;
 }
 function selectPLMonth(m) {
   S.plSelMonth=m; S.plSelPeriod=null;
